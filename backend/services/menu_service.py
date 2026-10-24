@@ -23,6 +23,7 @@ from ..providers import (
     SnapshotMenuProvider,
     save_snapshot,
 )
+from ..providers.snapshot_provider import load_snapshot
 from ..providers.mapper import map_menu, map_stores
 from ..schemas import MenuOut, StoreListOut
 from ..config import settings
@@ -44,7 +45,9 @@ class MenuService:
         self._mcp = McpMenuProvider()
         self._snapshot = SnapshotMenuProvider()
         self._menu_cache: dict[str, _CacheEntry] = {}
-        self._stores_cache: Optional[_CacheEntry] = None
+        # 门店缓存按「运行模式 + 城市 + 关键词」分开，
+        # 否则第二次换个城市搜索会直接命中第一次的结果
+        self._stores_cache: dict[str, _CacheEntry] = {}
 
     # ------------------------------------------------------------ 内部
 
@@ -57,30 +60,54 @@ class MenuService:
     async def _fetch_nutrition_raw(self) -> ProviderResult:
         return await self._mcp.get_nutrition()
 
-    async def _collect_snapshot(self, store_code: str) -> None:
-        """live 成功后刷新快照（菜单 + 门店 + 营养）。失败不影响主流程。"""
-        try:
-            menu_result = await self._fetch_menu_raw(store_code)
-            stores_result = await self._fetch_stores_raw(
-                settings.default_city, settings.default_store_keyword
-            )
-            try:
-                nutrition_result = await self._fetch_nutrition_raw()
-            except McpError:
-                nutrition_result = None  # 营养拉取失败不阻塞快照
+    async def _collect_snapshot(self, store_code: str, menu_result: ProviderResult) -> None:
+        """live 成功后刷新快照（菜单 + 门店 + 营养）。失败不影响主流程。
 
-            existing = MenuSnapshot(store_code=store_code, fetched_at=menu_result.fetched_at)
-            existing.menu = menu_result.data
-            existing.trace_ids["query-meals"] = menu_result.trace_id or ""
+        菜单直接复用本次已经拉到的结果，不再为了写快照重复请求一次上游。
+        门店与营养只在快照里还没有时才补拉，避免每次取菜单都额外打两次 MCP。
+        已采集的套餐结构（meal_details）原样保留，不被本次刷新清掉。
+        """
+        try:
+            previous = load_snapshot(store_code)
+
+            stores_result: Optional[ProviderResult] = None
+            if previous is None or previous.stores is None:
+                stores_result = await self._fetch_stores_raw(
+                    settings.default_city, settings.default_store_keyword
+                )
+
+            nutrition_result: Optional[ProviderResult] = None
+            if previous is None or previous.nutrition is None:
+                try:
+                    nutrition_result = await self._fetch_nutrition_raw()
+                except McpError:
+                    nutrition_result = None  # 营养拉取失败不阻塞快照
+
+            snapshot = MenuSnapshot(store_code=store_code, fetched_at=menu_result.fetched_at)
+            snapshot.menu = menu_result.data
+            snapshot.trace_ids["query-meals"] = menu_result.trace_id or ""
+            snapshot.meal_details = (
+                previous.meal_details if previous is not None else None
+            )
+            if previous is not None:
+                # traceId 保留历史采集证据，缺失时才用本次的覆盖
+                for tool, trace_id in previous.trace_ids.items():
+                    snapshot.trace_ids.setdefault(tool, trace_id)
             if stores_result is not None:
-                existing.stores = stores_result.data
-                existing.trace_ids["query-nearby-stores"] = stores_result.trace_id or ""
+                snapshot.stores = stores_result.data
+                snapshot.trace_ids["query-nearby-stores"] = stores_result.trace_id or ""
+            elif previous is not None:
+                snapshot.stores = previous.stores
             if nutrition_result is not None:
-                existing.nutrition = nutrition_result.data
-                existing.trace_ids["list-nutrition-foods"] = nutrition_result.trace_id or ""
-            save_snapshot(existing)
-        except (McpError, McpTimeout):
-            pass  # 快照刷新失败只记录，不向上抛
+                snapshot.nutrition = nutrition_result.data
+                snapshot.trace_ids["list-nutrition-foods"] = nutrition_result.trace_id or ""
+            elif previous is not None:
+                snapshot.nutrition = previous.nutrition
+            save_snapshot(snapshot)
+        except (McpError, McpTimeout, OSError):
+            # 快照刷新失败只记录，不向上抛：绝不能因为写盘失败
+            # 把本次已经成功的在线结果变成错误响应
+            pass
 
     # ------------------------------------------------------------ 对外
 
@@ -91,8 +118,10 @@ class MenuService:
         keyword = keyword or settings.default_store_keyword
         mode = settings.data_mode
 
-        if self._stores_cache and self._stores_cache.valid():
-            cached: StoreListOut = self._stores_cache.value  # type: ignore[assignment]
+        cache_key = f"{mode}:{city}:{keyword}"
+        cached_entry = self._stores_cache.get(cache_key)
+        if cached_entry and cached_entry.valid():
+            cached: StoreListOut = cached_entry.value  # type: ignore[assignment]
             return cached
 
         result: Optional[ProviderResult] = None
@@ -125,7 +154,7 @@ class MenuService:
             fetched_at=result.fetched_at if result else "",
             degraded_reason=degraded,
         )
-        self._stores_cache = _CacheEntry(out)
+        self._stores_cache[cache_key] = _CacheEntry(out)
         return out
 
     async def get_menu(self, store_code: str) -> MenuOut:
@@ -142,8 +171,9 @@ class MenuService:
         if mode in ("live", "auto"):
             try:
                 result = await self._fetch_menu_raw(store_code)
-                # live 成功：刷新快照作为演示兜底与调用证据
-                await self._collect_snapshot(store_code)
+                # live 成功：刷新快照作为演示兜底与调用证据。
+                # 快照写入本身失败不影响本次在线结果（已在 _collect_snapshot 内部兜住）
+                await self._collect_snapshot(store_code, result)
             except McpTimeout as exc:
                 if mode == "live":
                     raise
