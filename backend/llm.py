@@ -1,3 +1,4 @@
+# 修复说明：在线模型沿用子组/否定校验，DeepSeek 使用 JSON 非思考输出并保留真实失败原因。
 """Extract meal requirements while keeping every explicit hard constraint visible."""
 from __future__ import annotations
 
@@ -7,6 +8,7 @@ import os
 import re
 import urllib.error
 import urllib.request
+from urllib.parse import urlsplit
 from collections.abc import Mapping
 from decimal import Decimal, InvalidOperation
 from typing import Any
@@ -15,7 +17,7 @@ from pydantic import ValidationError
 
 from backend import config as _configuration  # 统一读取本地环境配置；不记录凭据。
 from backend.schemas import Requirements, RequirementsDraft
-from backend.skill.parser import _TASTE_WORDS, _current_data, _finish, _number, rule_extract
+from backend.skill.parser import _TASTE_WORDS, _current_data, _finish, _number, _total_people_matches, rule_extract
 
 
 class ExtractionError(RuntimeError):
@@ -24,13 +26,17 @@ class ExtractionError(RuntimeError):
 
 def _evidence_supports(field: str, value: Any, quote: str) -> bool:
     """Check that numbers and critical qualifiers appear in the cited words."""
-    amounts = re.findall(r"\d+(?:\.\d{1,2})?", quote)
     counts = [_number(word) for word in re.findall(r"\d+|[一二两三四五六七八九十]+", quote)]
     if field == "people":
         return type(value) is int and value in counts and bool(re.search(r"人|位", quote))
     if field == "budget_fen":
         try:
-            return type(value) is int and any(int(Decimal(amount) * 100) == value for amount in amounts)
+            # 中文金额可由模型补充，但证据必须是带货币单位的真实金额，不能引用人数充数。
+            money_words = re.findall(r"(\d+(?:\.\d{1,2})?|[一二两三四五六七八九十]+)\s*(?:元|块)", quote)
+            quoted_fen = [int(Decimal(word) * 100) if re.fullmatch(r"\d+(?:\.\d{1,2})?", word)
+                          else (_number(word) * 100 if _number(word) is not None else None)
+                          for word in money_words]
+            return type(value) is int and value in quoted_fen
         except InvalidOperation:
             return False
     if field == "budget_type":
@@ -82,6 +88,19 @@ def _validated_result(model_data: Mapping[str, Any], message: str, current: Any)
             continue
         if not _evidence_supports(field, value, quote):
             continue
+        # 引文中的“2人”可能属于子组；必须回到完整原句核实总人数。
+        if field == "people" and not any(
+            _number(match.group(1)) == value
+            for match in _total_people_matches(message, previous.get("people"))
+        ):
+            continue
+        if field == "exclude_beverage" and "beverage_scope" in data.get("pending_fields", []):
+            continue
+        # 规则已处理否定与更正，模型不能通过截短引文恢复被否定的饭量或口味。
+        if field == "appetite" and value != data.get("appetite"):
+            continue
+        if field in ("preferred_tags", "habitual_tags") and not set(value).issubset(data.get(field) or []):
+            continue
         if data.get(field) != previous.get(field):
             continue  # The explicit rule result wins over model interpretation.
         if field == "exclude_beverage" and previous.get(field) is True and value is False:
@@ -120,10 +139,17 @@ def _request_model(message: str, current: Any, timeout: float) -> Mapping[str, A
                 "membership_status 仅 unknown/none/active，用户自报 active 不代表资格已核验。"
                 "未明确的信息不要填，不能猜预算口径、忌口人数或会员资格。"
                 "其他过敏或忌口不要擅自承诺支持。不要计算餐品价格。"
+                "总人数与其中/另外几人的偏好人数必须区分，不要用子组覆盖总人数。"
+                "部分人不要饮料不等于整单不要；遇到按人分配饮料时不修改整单饮料字段。"
+                "正确处理否定和更正，例如不是大饭量、不喜欢牛肉改成鸡肉。"
             )},
             {"role": "user", "content": json.dumps({"message": message, "current": _current_data(current)}, ensure_ascii=False)},
         ],
     }
+    # DeepSeek 默认开启思考；短需求提取显式关闭思考并要求 JSON，避免超时或解释文本。
+    if urlsplit(base_url).hostname == "api.deepseek.com":
+        payload.update({"thinking": {"type": "disabled"}, "response_format": {"type": "json_object"},
+                        "stream": False, "max_tokens": 1200})
     request = urllib.request.Request(
         base_url + "/chat/completions",
         data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
@@ -133,6 +159,8 @@ def _request_model(message: str, current: Any, timeout: float) -> Mapping[str, A
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
             body = json.load(response)
+        if body["choices"][0].get("finish_reason") not in (None, "stop"):
+            raise ExtractionError("模型输出未完整结束，请重试")
         content = body["choices"][0]["message"]["content"]
         if not isinstance(content, str):
             raise ValueError("content 不是文本")
@@ -141,6 +169,8 @@ def _request_model(message: str, current: Any, timeout: float) -> Mapping[str, A
         if not isinstance(parsed, Mapping):
             raise ValueError("JSON 不是对象")
         return parsed
+    except urllib.error.HTTPError as exc:
+        raise ExtractionError(f"模型服务请求失败（HTTP {exc.code}），请检查 API Key、模型名和额度") from exc
     except (urllib.error.URLError, TimeoutError) as exc:
         raise ExtractionError("模型服务请求失败或超时，请稍后重试") from exc
     except (ValueError, KeyError, IndexError, TypeError) as exc:

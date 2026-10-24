@@ -1,3 +1,4 @@
+# 修复说明：区分总人数与子组偏好，保留饮料追问，并正确处理否定、更正和会员名称。
 """Validate complete meal requirements against A's shared API model."""
 from __future__ import annotations
 
@@ -51,14 +52,20 @@ _TASTE_WORDS = {
     "sweet": r"甜食|甜点|甜品", "sugar_free": r"无糖|零糖",
 }
 _PREFERENCE_NEGATIVE = re.compile(r"不喜欢|不想吃|不要|不吃|讨厌|避开")
+_CLAUSE_BREAK = re.compile(r"[，,。；;！!？?]|但是|不过|而是|改成|换成")
+_BEVERAGE_GROUP = re.compile(
+    rf"(?P<count>{_NUMBER})\s*(?:个?人|位)\s*(?:都)?\s*"
+    r"(?P<choice>不想喝|不想要|不喝|不要|不需要|不带|要喝|想喝|需要|要|喝|带)\s*(?:任何)?(?:饮料|饮品)"
+)
 _FOLLOW_UP = {
     "people": "一共几人用餐（最多 20 人）？",
     "budget": "预算是多少？请说明是总预算还是人均预算。",
     "non_spicy_people": "有几位不吃辣？不辣人数不能超过用餐人数。",
     "dietary_constraints": "目前只能核实不辣餐份。其他忌口无法保证，请确认是否移除该条件。",
+    "beverage_scope": "已保留总人数。目前只能设置整单饮料偏好，暂不支持按人分配；请选择整单不要饮料，或整单不限制饮料。",
     "habit_horizon_months": "希望分析未来几个月的购买习惯？",
 }
-_FIELD_ORDER = ("people", "budget", "non_spicy_people", "dietary_constraints", "habit_horizon_months")
+_FIELD_ORDER = ("people", "budget", "non_spicy_people", "dietary_constraints", "beverage_scope", "habit_horizon_months")
 
 
 def _number(text: str) -> int | None:
@@ -97,6 +104,37 @@ def _set_pending(data: dict[str, Any], name: str) -> None:
 
 def _clear_pending(data: dict[str, Any], name: str) -> None:
     data["pending_fields"] = [field for field in data.get("pending_fields", []) if field != name]
+
+
+# 按分句判断否定，避免前一个口味的“不喜欢”影响更正后的新口味。
+def _local_prefix(message: str, position: int) -> str:
+    return _CLAUSE_BREAK.split(message[:position])[-1]
+
+
+def _is_negated(message: str, position: int) -> bool:
+    return bool(re.search(r"(?:不是|并非|并不是|不要|不算|不属于)\s*$", _local_prefix(message, position)))
+
+
+# 子组描述不覆盖总人数；只有无其他总人数的普通“2人不要饮料”可同时说明整单人数。
+def _total_people_matches(message: str, current_people: int | None = None) -> list[re.Match]:
+    matches = []
+    all_matches = list(_PEOPLE.finditer(message))
+    for match in all_matches:
+        before = message[:match.start()]
+        after = message[match.end():]
+        if _is_negated(message, match.start()):
+            continue
+        if re.search(r"(?:其中|其余|剩下|剩余|另外|另有)\s*$", before):
+            continue
+        if re.match(r"\s*(?:中|里)?\s*(?:不吃辣|不能吃辣|忌辣|不辣)", after):
+            continue
+        beverage = _BEVERAGE_GROUP.match(message, match.start())
+        if beverage and (len(all_matches) > 1 or current_people is not None):
+            continue
+        if matches and re.match(r"\s*(?:正常|随意|都可以|大饭量|小饭量|饭量|喜欢|想吃)", after):
+            continue
+        matches.append(match)
+    return matches
 
 
 def _finish(data: dict[str, Any], source: str) -> dict[str, Any]:
@@ -139,14 +177,7 @@ def _finish(data: dict[str, Any], source: str) -> dict[str, Any]:
 
 
 def _extract_people(message: str, data: dict[str, Any]) -> None:
-    matches = []
-    for match in _PEOPLE.finditer(message):
-        before, after = message[max(0, match.start() - 3):match.start()], message[match.end():]
-        if re.search(r"不是\s*$", before):
-            continue
-        if re.match(r"\s*(?:中|里)?\s*(?:不吃辣|不能吃辣|忌辣|不辣)", after):
-            continue
-        matches.append(match)
+    matches = _total_people_matches(message, data.get("people"))
     if not matches:
         return
     value = _number(matches[-1].group(1))
@@ -240,23 +271,38 @@ def _extract_diet(message: str, data: dict[str, Any]) -> None:
 
 
 def _extract_beverage(message: str, data: dict[str, Any]) -> None:
+    # 部分人的意愿不能转换为整单限制；用户明确选择整单口径后才解除追问。
+    groups = list(_BEVERAGE_GROUP.finditer(message))
+    scope_markers = list(re.finditer(r"整单|全单|全部人|所有人|大家都", message))
+    whole_order = bool(scope_markers and (not groups or scope_markers[-1].start() > groups[-1].start()))
+    partial = any(
+        _number(group.group("count")) != data.get("people")
+        for group in groups
+    )
+    qualitative_group = bool(re.search(r"(?:有些人|有的人|有人|部分人|一部分人).{0,8}(?:饮料|饮品)", message))
+    if (partial or qualitative_group) and not whole_order:
+        _set_pending(data, "beverage_scope")
+        data["notes"].append("检测到部分人的饮料需求，未改成整单限制；请确认整单口径。")
+        return
     events: list[tuple[int, int, bool]] = []
     patterns = [
-        (True, r"不带(?:任何)?(?:饮料|饮品)|不要(?:任何)?(?:饮料|饮品)|不喝(?:任何)?(?:饮料|饮品)|不需要(?:饮料|饮品)|去掉(?:饮料|饮品)|排除(?:饮料|饮品)|无(?:饮料|饮品)|不要喝的"),
-        (False, r"不是不(?:要|喝|带|需要)(?:饮料|饮品)|可以(?:喝|带)?(?:饮料|饮品)|允许(?:饮料|饮品)|需要(?:饮料|饮品)|要喝?(?:饮料|饮品)|加(?:饮料|饮品)|带(?:饮料|饮品)|饮料不限|不排除(?:饮料|饮品)|取消无(?:饮料|饮品)"),
+        (True, r"不带(?:任何)?(?:饮料|饮品)|不要(?:任何)?(?:饮料|饮品)|不喝(?:任何)?(?:饮料|饮品)|不想(?:喝|要|带)(?:饮料|饮品)|不需要(?:饮料|饮品)|去掉(?:饮料|饮品)|排除(?:饮料|饮品)|无(?:饮料|饮品)|不要喝的"),
+        (False, r"不是不(?:要|喝|带|需要)(?:饮料|饮品)|可以(?:喝|带)?(?:饮料|饮品)|允许(?:饮料|饮品)|需要(?:饮料|饮品)|要喝?(?:饮料|饮品)|加(?:饮料|饮品)|带(?:饮料|饮品)|饮料不限|不限制(?:饮料|饮品)|不排除(?:饮料|饮品)|取消无(?:饮料|饮品)"),
     ]
     for value, pattern in patterns:
         for match in re.finditer(pattern, message):
             events.append((match.end(), len(match.group()), value))
     if events:
         data["exclude_beverage"] = max(events)[2]
+        _clear_pending(data, "beverage_scope")
 
 
 def _extract_appetite(message: str, data: dict[str, Any]) -> None:
     patterns = {"light": r"轻饭量|饭量轻|饭量小|胃口小|吃得少|吃不多",
                 "normal": r"正常饭量|饭量正常|普通饭量",
                 "heavy": r"大饭量|饭量大|胃口大|大胃王|吃得多|很能吃"}
-    events = [(m.end(), value) for value, pattern in patterns.items() for m in re.finditer(pattern, message)]
+    events = [(m.end(), value) for value, pattern in patterns.items()
+              for m in re.finditer(pattern, message) if not _is_negated(message, m.start())]
     if events:
         data["appetite"] = max(events)[1]
 
@@ -268,7 +314,7 @@ def _extract_tags(message: str, data: dict[str, Any]) -> None:
     negative: list[str] = []
     for tag, pattern in _TASTE_WORDS.items():
         for match in re.finditer(pattern, message):
-            before = message[max(0, match.start() - 9):match.start()]
+            before = _local_prefix(message, match.start())
             after = message[match.end():match.end() + 3]
             if re.search(r"(?:平时|通常|常买|经常买).{0,5}$", before):
                 if tag not in habitual:
@@ -289,13 +335,16 @@ def _extract_tags(message: str, data: dict[str, Any]) -> None:
 
 
 def _extract_habits(message: str, data: dict[str, Any]) -> None:
+    # 品牌卡名称只是用户自报状态，不代表已由 MCP 核实优惠资格。
+    card_name = r"(?:麦金卡|麦金学期卡|早餐卡|会员卡|卡)"
     status_patterns = {
-        "none": r"没(?:有)?(?:会员)?卡|没(?:有)?开卡|未开卡|不是会员|无会员卡|无卡",
-        "active": r"已有(?:会员)?卡|已经开卡|有(?:会员)?卡|我是会员|会员卡有效",
+        "none": rf"没(?:有)?{card_name}|没(?:有)?开卡|未开卡|不是会员|无{card_name}",
+        "active": rf"(?:已有|已经有|有){card_name}|已经开卡|我是会员|{card_name}有效",
     }
-    events = [(m.end(), status) for status, pattern in status_patterns.items() for m in re.finditer(pattern, message)]
+    events = [(m.end(), len(m.group()), status) for status, pattern in status_patterns.items()
+              for m in re.finditer(pattern, message)]
     if events:
-        data["membership_status"] = max(events)[1]
+        data["membership_status"] = max(events)[2]
     frequency = re.search(rf"(?:每月|每个月|一个月|月均)\s*({_NUMBER})\s*次", message)
     if frequency:
         data["meal_frequency_per_month"] = _number(frequency.group(1))

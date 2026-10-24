@@ -1,3 +1,4 @@
+# 回归说明：部分饮料需求保留总人数并追问，在线模型不能绕过守卫或冒充回退成功。
 """从聊天草稿到正式 Skill、服务端校验及模拟结算的接口验收。"""
 from __future__ import annotations
 
@@ -135,3 +136,80 @@ def test_campaign_endpoint_reports_missing_upstream_facts(monkeypatch, tmp_path)
     assert data["status"] == "unavailable"
     assert data["items"] == []
     assert data["reason"]
+
+
+def test_partial_beverage_chat_preserves_people_and_waits_for_confirmation(monkeypatch, tmp_path):
+    client, _ = _client(monkeypatch, tmp_path)
+    first = client.post("/api/v1/chat", json={
+        "message": "我们4个人，总预算120元，其中2人不喝饮料",
+    }).json()["data"]
+    assert first["draft"]["people"] == 4
+    assert first["draft"]["exclude_beverage"] is False
+    assert first["ready"] is False
+    assert first["requirements"] is None
+    assert "beverage_scope" in first["missing_fields"]
+    resolved = client.post("/api/v1/chat", json={
+        "message": "整单不限制饮料", "current": first["draft"],
+    }).json()["data"]
+    assert resolved["ready"] is True
+    assert resolved["requirements"]["people"] == 4
+    response = client.post("/api/v1/plans", json={
+        "store_code": "1400011", "requirements": resolved["requirements"],
+    })
+    assert response.status_code == 200
+    plans = response.json()["data"]["plans"]
+    assert plans
+    assert all(plan["servings_total"] >= 4 and plan["total_fen"] <= 12000 for plan in plans)
+
+
+def test_negation_replacement_and_named_membership_work_through_chat(monkeypatch, tmp_path):
+    client, _ = _client(monkeypatch, tmp_path)
+    first = client.post("/api/v1/chat", json={
+        "message": "2人，总预算100元，喜欢牛肉",
+    }).json()["data"]
+    changed = client.post("/api/v1/chat", json={
+        "message": "不是大饭量，不喜欢牛肉，改成鸡肉，我有麦金卡", "current": first["draft"],
+    }).json()["data"]
+    assert changed["ready"] is True
+    assert changed["requirements"]["people"] == 2
+    assert changed["requirements"]["appetite"] == "normal"
+    assert changed["requirements"]["preferred_tags"] == ["chicken"]
+    assert changed["requirements"]["membership_status"] == "active"
+
+
+def test_online_model_cannot_overwrite_group_people_in_api(monkeypatch, tmp_path):
+    from backend import llm
+    client, _ = _client(monkeypatch, tmp_path)
+    monkeypatch.setattr(settings, "data_mode", "auto")
+    monkeypatch.setattr(llm, "_request_model", lambda *args: {
+        "updates": {"people": 2, "exclude_beverage": True},
+        "evidence": {"people": "2人", "exclude_beverage": "不喝饮料"},
+    })
+    data = client.post("/api/v1/chat", json={
+        "message": "其中2人不喝饮料",
+        "current": {"people": 4, "budget_type": "total", "budget_fen": 12000},
+    }).json()["data"]
+    assert data["parse_source"] == "llm"
+    assert data["draft"]["people"] == 4
+    assert data["draft"]["exclude_beverage"] is False
+    assert data["ready"] is False
+    assert "beverage_scope" in data["missing_fields"]
+
+
+def test_online_failure_preserves_draft_and_reports_rule_fallback(monkeypatch, tmp_path):
+    from backend import llm
+    client, _ = _client(monkeypatch, tmp_path)
+    monkeypatch.setattr(settings, "data_mode", "auto")
+
+    def failed_model(*args):
+        raise llm.ExtractionError("模型请求失败")
+
+    monkeypatch.setattr(llm, "_request_model", failed_model)
+    data = client.post("/api/v1/chat", json={
+        "message": "喜欢鸡肉",
+        "current": {"people": 4, "budget_type": "total", "budget_fen": 12000},
+    }).json()["data"]
+    assert data["parse_source"] == "rule"
+    assert data["requirements"]["people"] == 4
+    assert data["requirements"]["preferred_tags"] == ["chicken"]
+    assert any("已切换固定规则" in note for note in data["notes"])
