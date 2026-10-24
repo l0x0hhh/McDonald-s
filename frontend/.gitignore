@@ -1,0 +1,10 @@
+.npm-cache/
+node_modules/
+dist/
+*.tsbuildinfo
+verification/rollback-copy/
+verification/python-deps/
+verification/pytest-current/
+verification/game-feel-v2/rollback-copy/
+verification/hero-idle-v3/rollback-copy/
+verification/panel-alignment-v4/rollback-copy/

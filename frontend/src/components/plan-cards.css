@@ -1,0 +1,131 @@
+/* The serving-tray surfaces stay chunky, while comparison values stay still. */
+.plan-card .plan-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  margin: 0 0 15px;
+  padding: 4px;
+  border: 1px solid #dfc18b;
+  border-radius: 13px;
+  background: linear-gradient(180deg, #fff5cf, #fffaf0);
+  box-shadow: inset 0 2px 0 #fffef2, 0 3px 0 #ebd7ae;
+}
+
+.plan-card .plan-metric {
+  min-width: 0;
+  padding: 9px 10px;
+}
+
+.plan-card .plan-metric:nth-child(even) { border-left: 1px dashed #dcc28f; }
+.plan-card .plan-metric:nth-child(n + 3) { border-top: 1px dashed #dcc28f; }
+
+.plan-card .plan-metric dt {
+  font-size: 10px;
+  line-height: 1.5;
+  font-weight: 600;
+  color: #81603c;
+}
+
+.plan-card .plan-metric dd {
+  margin: 4px 0 0;
+  color: #563820;
+  font-size: 17px;
+  line-height: 1.35;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+.plan-card .plan-metric .price {
+  margin-top: 1px;
+  color: #d13c2c;
+  font-size: 27px;
+  letter-spacing: -.8px;
+}
+
+.plan-card .plan-metric .price > span { font-size: 15px; }
+.plan-card .plan-metric small {
+  display: block;
+  margin-top: 4px;
+  color: #846646;
+  font-size: 9px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.plan-card .metric-non-spicy dd { font-size: 13px; line-height: 1.65; color: #4e6c3d; }
+.plan-card .metric-warning dd,
+.plan-card .metric-warning small { color: #b33c2a; }
+.plan-card .plan-summary { margin: 0 0 13px; color: #7e6345; }
+
+.plan-card .food-item { align-items: flex-start; }
+.plan-card .food-info p { flex-wrap: wrap; row-gap: 4px; }
+.plan-card .food-info .item-comparison {
+  display: table;
+  max-width: 100%;
+  margin: 5px 0 0;
+  padding: 3px 6px;
+  border: 1px solid #e2c488;
+  border-radius: 5px;
+  background: #fff0c4;
+  color: #85571b;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+.plan-card .plan-comparison-note {
+  margin: 12px 0 0;
+  padding: 7px 9px;
+  border-left: 3px solid #d5b06a;
+  border-radius: 0 6px 6px 0;
+  background: #f8efdb;
+  color: #826544;
+  font-size: 9px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+
+.plan-card .plan-bottom {
+  flex-direction: row;
+  align-items: center;
+  min-height: 58px;
+  margin-top: 12px;
+  padding: 7px 0 9px;
+  gap: 10px;
+}
+
+.plan-card .plan-serving-count { color: #846646; font-size: 10px; line-height: 1.7; }
+.plan-card .choose-button { align-self: center; flex-shrink: 0; }
+
+/* Surface-only hover: the tray never moves its controls away from a pointer. */
+@media (hover: hover) {
+  .plan-card:hover {
+    box-shadow: inset 0 0 0 2px #fff8e7, 0 7px 0 #cfb083, 0 9px 0 #94643c, 0 22px 28px -15px #603b2475;
+  }
+  .plan-card.featured:hover {
+    box-shadow: inset 0 0 0 2px #fff9d9, 0 7px 0 #e7bd59, 0 9px 0 #a5772f, 0 22px 28px -15px #87551e77;
+  }
+}
+
+@media (min-width: 1060px) {
+  .plan-card .plan-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .plan-card .plan-metric:nth-child(n + 2) { border-left: 1px dashed #dcc28f; }
+  .plan-card .plan-metric:nth-child(n + 3) { border-top: 0; }
+  .plan-card .plan-metric { padding-inline: 9px; }
+}
+
+/* The narrow desktop result rail needs the same single-line total as phones. */
+@media (min-width: 721px) and (max-width: 800px) {
+  .plan-card .plan-metric .price { font-size: 22px; white-space: nowrap; }
+}
+
+@media (max-width: 370px) {
+  .plan-card .plan-card-body { padding: 13px; }
+  .plan-card .plan-metric { padding: 8px 7px; }
+  .plan-card .plan-metric dd { font-size: 16px; }
+  .plan-card .plan-metric .price { font-size: 22px; white-space: nowrap; }
+  .plan-card .metric-non-spicy dd { font-size: 12px; }
+  .plan-card .food-item { min-width: 0; flex-basis: 100%; }
+  .plan-card .choose-button { padding-inline: 10px; gap: 5px; }
+}

@@ -1,0 +1,19 @@
+/* The receipt inherits its selected tray, while copy and controls keep their size. */
+.plan-shared-label { display: inline-block; }
+.order-plan-heading {
+  margin: 0 0 11px;
+  color: #76502b;
+  font-size: 16px;
+  line-height: 1.5;
+}
+.order-total > strong { display: inline-block; font-variant-numeric: tabular-nums; }
+
+/* Cancel a handoff already in flight, not only the next animation. */
+.app-shell[data-reduced-motion="true"] :is(.plan-card, .plan-card-header, .plan-card-body, .plan-shared-label, .food-image, .price, button),
+.modal-backdrop[data-reduced-motion="true"] :is(.modal, .modal-top, .modal-content, .food-image, .order-plan-heading, .order-total > strong, button) {
+  transform: none !important;
+}
+.app-shell[data-reduced-motion="true"] :is(.plan-card, .plan-shared-label, .food-image, .price),
+.modal-backdrop[data-reduced-motion="true"] :is(.food-image, .order-plan-heading, .order-total > strong) {
+  opacity: 1 !important;
+}

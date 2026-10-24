@@ -1,0 +1,13 @@
+/* Only individual copy cues enter. Keep the CTA's rail stable from frame one. */
+.opening-copy,
+.opening-copy > .hero-actions {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opening-copy > :is(.eyebrow, h1, .hero-description, .hero-promises) {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

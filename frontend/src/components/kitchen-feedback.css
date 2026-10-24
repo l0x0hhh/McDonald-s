@@ -1,0 +1,74 @@
+/* Fixed interaction geometry: only decorative surfaces move, never controls. */
+.results-content .kitchen-feedback {
+  position: relative;
+  min-width: 0;
+  color: #624126;
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
+}
+.results-content .kitchen-feedback--loading,
+.results-content .kitchen-feedback--error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 410px;
+  padding: 35px 22px;
+  border: 2px dashed #dfc69a;
+  border-radius: 19px;
+  background: radial-gradient(ellipse at 50% 27%, #fff0b9 0, #fffaf0 58%, #fffdf7 100%);
+  text-align: center;
+  box-shadow: inset 0 2px 0 #ffffff;
+}
+.results-content > .kitchen-feedback--loading,
+.results-content > .kitchen-feedback--error { min-height: 100%; }
+.kitchen-feedback .feedback-eyebrow { color: #9b642b; font-size: 10px; font-weight: 700; letter-spacing: .12em; }
+.kitchen-feedback h4 { margin: 10px 0 11px; font-size: 23px; line-height: 1.4; color: #533622; }
+.kitchen-feedback p { margin: 0; max-width: 360px; font-size: 12px; line-height: 1.9; color: #876b4b; }
+.kitchen-feedback .feedback-help { display: block; margin-top: 17px; max-width: 320px; font-size: 11px; line-height: 1.8; color: #977c5d; }
+.feedback-decoration { position: relative; flex-shrink: 0; pointer-events: none; user-select: none; }
+.kitchen-feedback--loading .feedback-decoration { width: 215px; height: 161px; margin: 0 0 15px; }
+.feedback-pot { position: absolute; right: 24px; bottom: 15px; width: 113px; height: 105px; display: grid; place-items: center; border: 2px solid #e0ae46; border-radius: 50%; color: #c14a2d; background: linear-gradient(#fff8d5, #ffdb73); box-shadow: inset 0 4px 0 #fffbea, 0 5px 0 #d6ac5d, 0 10px 16px -9px #96632e66; }
+.feedback-pot > svg { filter: drop-shadow(0 2px 0 #fff5d7); }
+.feedback-ticket { position: absolute; top: 7px; left: 13px; width: 87px; height: 116px; padding: 13px 11px; box-sizing: border-box; border: 1px solid #dfbf86; border-radius: 8px 8px 3px 3px; background: #fffdf5; color: #b77e37; box-shadow: 0 5px 0 #ebd9ae, 0 7px 14px -7px #94703c55; transform: rotate(-9deg); }
+.feedback-ticket span { display: block; font-size: 6px; letter-spacing: .03em; line-height: 1.6; margin: 6px 0 9px; }
+.feedback-ticket > i { display: block; height: 3px; margin: 7px 0; border-radius: 2px; background: #eddbb8; }
+.feedback-ticket > i:last-child { width: 65%; background: #efc75b; }
+.feedback-utensil { position: absolute; right: 5px; top: 23px; color: #d18434; transform: rotate(14deg); }
+.feedback-steam { position: absolute; display: flex; gap: 8px; top: -23px; left: 35px; height: 35px; }
+.feedback-steam > i { display: block; width: 6px; height: 26px; border: solid #d8a65d; border-width: 0 0 0 2px; border-radius: 50%; opacity: .65; }
+.feedback-wait-note { display: flex; align-items: center; gap: 8px; margin-top: 20px; padding: 8px 13px; border-radius: 999px; background: #fff2cf; color: #9b642b; font-size: 11px; }
+.feedback-wait-dots { display: inline-flex; align-items: center; gap: 4px; }
+.feedback-wait-dots > i { width: 4px; height: 4px; background: #cd8b2e; border-radius: 50%; }
+.kitchen-feedback[data-motion="quiet"] .feedback-pot { animation: feedback-pot-idle 2.2s ease-in-out infinite; }
+.kitchen-feedback[data-motion="quiet"] .feedback-steam > i { animation: feedback-steam-rise 1.9s ease-out infinite; }
+.kitchen-feedback[data-motion="quiet"] .feedback-wait-dots > i { animation: feedback-dot 1.5s ease-in-out infinite; }
+.feedback-steam > i:nth-child(2), .feedback-wait-dots > i:nth-child(2) { animation-delay: .2s !important; }
+.feedback-steam > i:nth-child(3), .feedback-wait-dots > i:nth-child(3) { animation-delay: .4s !important; }
+.results-content .kitchen-feedback--success { display: flex; align-items: center; gap: 12px; margin: 0 0 15px; padding: 13px 15px; border: 1px solid #dfc175; border-radius: 13px; background: linear-gradient(115deg, #fff4c3, #fffaf0); box-shadow: inset 0 2px 0 #fffdf4, 0 3px 0 #eddeb6; }
+.feedback-ready-stamp { display: grid; flex: 0 0 43px; width: 43px; height: 43px; place-items: center; border: 2px solid #8b9b55; border-radius: 14px; background: #edf1ce; color: #60783c; box-shadow: inset 0 2px 0 #ffffe4, 0 3px 0 #cbd39e; pointer-events: none; }
+.kitchen-feedback[data-motion="quiet"] .feedback-ready-stamp { animation: feedback-stamp .42s ease-out 1; }
+.feedback-ready-copy { min-width: 0; }
+.feedback-ready-copy .feedback-eyebrow { font-size: 9px; }
+.feedback-ready-copy h4 { margin: 3px 0 3px; font-size: 16px; }
+.feedback-ready-copy p { font-size: 11px; }
+.feedback-error-ticket { display: grid; place-items: center; gap: 7px; width: 90px; height: 106px; margin-bottom: 24px; border: 2px solid #d4ad75; border-radius: 9px; color: #b46e35; background: #fffdf6; box-shadow: 0 5px 0 #ead7ad, 0 12px 17px -13px #9d713f; transform: rotate(-5deg); }
+.feedback-error-ticket span { font-size: 10px; }
+.kitchen-feedback .feedback-error-detail { margin-bottom: 10px; color: #a34b37; }
+.kitchen-feedback .feedback-retry { display: inline-flex; justify-content: center; align-items: center; gap: 8px; min-height: 42px; margin-top: 20px; padding: 10px 18px; border: 1px solid #b99b66; color: #6b4b2b; background: linear-gradient(#fff8df, #f2da9e); box-shadow: inset 0 2px 0 #fffdf1, 0 3px 0 #d9b76b; }
+.kitchen-feedback .feedback-retry:disabled { opacity: .55; cursor: not-allowed; }
+.kitchen-feedback .feedback-retry:focus-visible { outline: 3px solid #b57b00; outline-offset: 4px; }
+@keyframes feedback-pot-idle { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+@keyframes feedback-steam-rise { 0% { opacity: 0; transform: translateY(3px); } 35% { opacity: .65; } 100% { opacity: 0; transform: translateY(-7px); } }
+@keyframes feedback-dot { 0%,100% { opacity: .35; } 50% { opacity: 1; } }
+@keyframes feedback-stamp { 0% { transform: scale(.9) rotate(-8deg); } 65% { transform: scale(1.04) rotate(2deg); } 100% { transform: none; } }
+@media (max-width: 720px) {
+  .results-content > .kitchen-feedback--loading, .results-content > .kitchen-feedback--error { min-height: 380px; }
+  .results-content .kitchen-feedback--loading, .results-content .kitchen-feedback--error { padding: 26px 17px; }
+  .kitchen-feedback h4 { font-size: 21px; }
+  .results-content .kitchen-feedback--success { padding: 12px; gap: 10px; }
+  .feedback-ready-copy h4 { font-size: 15px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .kitchen-feedback *, .kitchen-feedback *::before, .kitchen-feedback *::after { animation: none !important; transition: none !important; }
+}
