@@ -3,7 +3,7 @@
 import unittest
 
 from backend.schemas import MenuItemOut, NutritionOut, PlanningContext, Requirements
-from backend.skill import PlanValidationError, generate_plans, validate_plan
+from backend.skill import CAPABILITIES, PlanValidationError, generate_plans, validate_plan
 
 
 def main(code, name, price, *, spicy="mild", beverage="none", tags=None, membership=False, eligible=False):
@@ -31,6 +31,11 @@ def drink():
 
 
 class PlannerTests(unittest.TestCase):
+    def test_declared_capabilities_match_A_contract(self):
+        for name in ("exclude_beverage", "appetite_planning", "taste_matching"):
+            self.assertIs(CAPABILITIES.get(name), True)
+        self.assertNotIn("membership_comparison", CAPABILITIES)
+
     def test_public_contract_and_three_views(self):
         menu = [main("chicken", "鸡肉堡", 1000), main("beef", "牛肉堡", 1200), side(), side("side2", 400)]
         req = Requirements(people=4, budget_type="per_person", budget_fen=1600,

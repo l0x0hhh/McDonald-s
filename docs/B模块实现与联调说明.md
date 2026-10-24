@@ -10,6 +10,8 @@
 
 ## 当前可用范围
 
+B 在 `backend.skill.CAPABILITIES` 中声明 `exclude_beverage`、`appetite_planning`、`taste_matching` 为 `True`，供 A 的静态能力闸门读取；最终可用性仍由 A 结合当次门店事实判断。
+
 | 能力 | 当前工作区行为 |
 |---|---|
 | 需求提取 | 异步 `backend.llm.extract_requirements(message, current)` 返回完整需求、跨轮 `draft`、缺失字段、追问、来源与说明；在线模型需配置凭据，演示模式使用固定规则并标 `demo_template`。模型异常回退规则时标 `rule`。人数、预算口径、忌辣人数冲突会追问；其他忌口显示支持范围。 |
@@ -58,4 +60,4 @@
 
 ## 验证与限制
 
-在仓库根目录执行 `python -B -m pytest tests backend/tests -q`；本地 69 项通过，其中包括浏览器输入页、新旧需求隔离、1～7 人主食份数、演示快照下的聊天草稿、无饮料方案、服务端校验、模拟结算和旧方案失效。`docs/api-examples/chat_no_beverage_draft.json`、`chat_no_beverage_ready.json`、`plans_no_beverage_demo.json` 是当前接口在演示模式下生成的完整响应。在线模型的本地探测被当前执行环境的网络权限阻止，不能据此判断用户终端的配置无效；真实 MCP 套餐选配、实时算价、会员卡费与活动读取尚未实测。本次 Codex 工作不冒充 WorkBuddy 会话，真实记录由本人另行整理。
+在仓库根目录执行 `python -B -m pytest tests backend/tests -q`；本地 70 项通过，其中包括浏览器输入页、新旧需求隔离、1～7 人主食份数、演示快照下的聊天草稿、无饮料方案、服务端校验、模拟结算和旧方案失效。`docs/api-examples/chat_no_beverage_draft.json`、`chat_no_beverage_ready.json`、`plans_no_beverage_demo.json` 是当前接口在演示模式下生成的完整响应。在线模型的本地探测被当前执行环境的网络权限阻止，不能据此判断用户终端的配置无效；真实 MCP 套餐选配、实时算价、会员卡费与活动读取尚未实测。本次 Codex 工作不冒充 WorkBuddy 会话，真实记录由本人另行整理。
