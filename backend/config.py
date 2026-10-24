@@ -29,6 +29,8 @@ def _load_dotenv(path: Path) -> None:
 
 
 _load_dotenv(BASE_DIR / ".env")
+# 兼容既有 B 本地配置；系统与 backend/.env 的显式设置优先。
+_load_dotenv(BASE_DIR.parent / ".env")
 
 
 class Settings:
@@ -64,6 +66,22 @@ class Settings:
     def describe(self) -> dict:
         """给前端看的安全信息，不含任何凭据。"""
         return {
+            "contract_version": "1.1",
+            "session_scope": "single_demo",
+            "capabilities": {
+                "chat_draft": True,
+                "exclude_beverage": True,
+                "appetite_planning": True,
+                "taste_matching": True,
+                "membership_comparison": False,
+                "habit_estimate": False,
+                "nutrition_summary": True,
+                "campaigns": False,
+            },
+            "data_limitations": [
+                "当前未接入套餐选配、同篮子报价、卡费资格与活动读取；相关计算仅能在服务端注入已核实事实后提供。",
+                "菜单价格为参考估算；演示快照不是实时收银报价。",
+            ],
             "data_mode": self.data_mode,
             "mcp_configured": self.has_mcp_credentials,
             "default_store_code": self.default_store_code,

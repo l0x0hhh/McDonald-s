@@ -167,13 +167,11 @@ def test_plans_max_people_boundary(services):
         assert plan.servings_total >= 20
 
 
-def test_non_spicy_people_capped_at_total(services):
-    """忌口人数超过总人数时应收敛到总人数，不能生成超过人数的份数需求。"""
-    req = make_req(6, 15000, non_spicy=10)
-    assert req.non_spicy_people == 6
-    out = run(services[1].create_plans(PlanRequest(store_code=STORE, requirements=req)))
-    for plan in out.plans:
-        assert plan.servings_total >= 6
+def test_non_spicy_people_over_total_requires_correction(services):
+    """V0.5 要求冲突人数追问/拒绝，不可静默截断。"""
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError, match="不辣人数不能超过总人数"):
+        make_req(6, 15000, non_spicy=10)
 
 
 # ------------------------------------------------------------ 方案存取与模拟结算

@@ -12,14 +12,14 @@ from __future__ import annotations
 import time
 import uuid
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from ..config import settings
 from ..providers import McpError, McpTimeout
-from ..schemas import ChatIn, ChatOut, MenuOut, OrderIn, OrderOut, PlanRequest, PlanResponse, StoreListOut
+from ..schemas import ChatIn, ChatOut, MenuOut, OrderIn, OrderOut, PlanRequest, PlanResponse, Requirements, StoreListOut
 from ..services import (
     PlanExpiredError,
     PlanNotFoundError,
@@ -27,6 +27,7 @@ from ..services import (
     menu_service,
     plan_service,
 )
+from ..services.plan_service import CapabilityUnavailableError
 
 router = APIRouter(prefix="/api/v1")
 
@@ -42,6 +43,7 @@ ERROR_STATUS = {
     "E_PLAN_NOT_FOUND": 404,
     "E_PLAN_EXPIRED": 409,
     "E_INTERNAL": 500,
+    "E_CAPABILITY_UNAVAILABLE": 409,
 }
 
 
@@ -118,9 +120,31 @@ async def create_plans(payload: PlanRequest) -> JSONResponse:
         return fail("E_UPSTREAM_TIMEOUT", str(exc))
     except McpError as exc:
         return fail("E_UPSTREAM", str(exc))
+    except CapabilityUnavailableError as exc:
+        return fail("E_CAPABILITY_UNAVAILABLE", str(exc))
     except Exception as exc:  # noqa: BLE001
         return fail("E_INTERNAL", f"方案生成失败：{exc}")
     return ok(result.model_dump())
+
+
+@router.get("/campaigns")
+async def get_campaigns(store_code: str, preferred_tags: list[str] = Query(default=[])) -> JSONResponse:
+    """只读发现；上游尚无可核实活动时返回明确不可用状态。"""
+    from ..skill.campaigns import recommend_campaigns
+    try:
+        menu = await menu_service.get_menu(store_code)
+        context = await plan_service.get_context(menu)
+    except (McpError, McpTimeout):
+        return ok({"items": [], "status": "unavailable", "reason": "活动数据暂不可用"})
+    requirements = Requirements(people=1, budget_fen=0, preferred_tags=preferred_tags)
+    items = recommend_campaigns(context.campaigns, requirements, store_code)
+    return ok({
+        "items": items,
+        "status": "available" if context.campaigns else "unavailable",
+        "reason": None if context.campaigns else "尚无已核实的活动读取数据",
+        "data_source": menu.data_source, "fetched_at": menu.fetched_at,
+        "degraded_reason": menu.degraded_reason,
+    })
 
 
 # ---------------------------------------------------------------- 模拟结算

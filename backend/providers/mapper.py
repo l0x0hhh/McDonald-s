@@ -48,18 +48,26 @@ def classify_spicy(name: str) -> SpicyLevel:
     return "unknown"
 
 
-_SERVING_PATTERN = re.compile(r"(二人|三人|四人|五人|六人|双人|多人)")
-
-
-def detect_servings(name: str) -> int:
-    """从名称估计份数：默认 1，「双人餐 / 多人餐」等字样按人数放大。"""
-    text = name.replace("分享餐", "双人餐")
-    match = _SERVING_PATTERN.search(text)
-    if not match:
-        return 1
-    token = match.group(1)
-    table = {"二人": 2, "三人": 3, "四人": 4, "五人": 5, "六人": 6, "双人": 2}
-    return table.get(token, 2 if token == "多人" else 1)
+def classify_food(name: str, is_combo: bool = False) -> tuple[str, str]:
+    """只识别名称明确的单品；套餐和任选商品必须另有组成事实。"""
+    if is_combo or re.search(r"套餐|件套|[单双多人]餐|任选|随心|拼盘|全家桶|分享", name):
+        return "combo", "unknown"
+    beverage = bool(re.search(r"可乐|雪碧|怡泉|红茶|奶茶|奶绿|咖啡|拿铁|奶铁|美式|牛奶|燕麦奶|豆浆|果汁|苹果汁|雪冰|卡布奇诺|美汁源", name))
+    main = bool(re.search(r"堡|汉堡|麦香鸡|麦香鱼|麦满分|巨无霸", name))
+    side = bool(re.search(r"薯条|薯饼|玉米杯|苹果片|鸡翅|V翅|麦乐鸡|鸡排|脆汁鸡|肉骨鸡|鸡块", name))
+    dessert = bool(re.search(r"麦旋风|新地|圆筒|冰淇淋|苹果派|菠萝派", name))
+    # 同名中混合出现饮品和固体餐品时无法证明其组成。
+    if beverage and (main or side or dessert):
+        return "unknown", "unknown"
+    if beverage:
+        return "beverage", "contains"
+    if main:
+        return "main", "none"
+    if side:
+        return "side", "none"
+    if dessert:
+        return "dessert", "none"
+    return "unknown", "unknown"
 
 
 def map_stores(raw_stores: list[Any]) -> list[StoreOut]:
@@ -105,8 +113,13 @@ def map_menu(store_code: str, raw_menu: Any) -> tuple[list[MenuItemOut], list[st
             seen.add(code)
             detail = meals.get(code) or {}
             name = str(detail.get("name") or code)
-            price_fen = parse_price_fen(detail.get("currentPrice")) or 0
-            original_fen = parse_price_fen(detail.get("originalPrice")) or price_fen
+            parsed_price = parse_price_fen(detail.get("currentPrice"))
+            # 解析失败的零仅为旧接口占位，price_verified=false 禁止用于规划。
+            price_verified = parsed_price is not None and parsed_price >= 0
+            price_fen = parsed_price if price_verified else 0
+            original_fen = parse_price_fen(detail.get("originalPrice"))
+            if original_fen is None or original_fen < price_fen:
+                original_fen = price_fen
 
             discount_type = detail.get("discountType")
             # 「随单购/麦金卡/早餐卡」类优惠都需要会员资格才成立（实测快照只出现
@@ -119,11 +132,13 @@ def map_menu(store_code: str, raw_menu: Any) -> tuple[list[MenuItemOut], list[st
             membership_note = None
             if requires_membership:
                 membership_note = (
-                    f"低价 {detail.get('currentPrice')} 元需随单购买麦金卡，"
-                    f"未开卡按原价 {detail.get('originalPrice')} 元结算"
+                    f"菜单低价附带条件：{discount_text}；资格和不开卡应付尚未核实"
                 )
 
             is_combo = any(kw in name for kw in combo_keywords)
+            food_role, beverage_status = classify_food(name, is_combo)
+            is_combo = food_role == "combo"
+            spicy_level = classify_spicy(name)
             items.append(
                 MenuItemOut(
                     code=code,
@@ -134,10 +149,17 @@ def map_menu(store_code: str, raw_menu: Any) -> tuple[list[MenuItemOut], list[st
                     tags=list(meal_ref.get("tags") or []),
                     image=detail.get("image"),
                     is_combo=is_combo,
-                    servings=detect_servings(name),
-                    spicy_level=classify_spicy(name),
+                    servings=1 if food_role == "main" else 0,
+                    spicy_level=spicy_level,
                     requires_membership=requires_membership,
                     membership_note=membership_note,
+                    food_role=food_role,
+                    beverage_status=beverage_status,
+                    servings_verified=food_role in ("main", "side", "beverage", "dessert"),
+                    non_spicy_servings=int(food_role == "main" and spicy_level == "mild"),
+                    side_servings=int(food_role == "side"),
+                    price_verified=price_verified,
+                    available=price_verified,
                 )
             )
     return items, category_names

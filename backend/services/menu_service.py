@@ -24,7 +24,7 @@ from ..providers import (
     save_snapshot,
 )
 from ..providers.mapper import map_menu, map_stores
-from ..schemas import MenuOut, StoreListOut
+from ..schemas import MenuOut, PlanningContext, StoreListOut
 from ..config import settings
 
 _CACHE_TTL_SECONDS = 300.0
@@ -44,7 +44,7 @@ class MenuService:
         self._mcp = McpMenuProvider()
         self._snapshot = SnapshotMenuProvider()
         self._menu_cache: dict[str, _CacheEntry] = {}
-        self._stores_cache: Optional[_CacheEntry] = None
+        self._stores_cache: dict[tuple[str, str, str], _CacheEntry] = {}
 
     # ------------------------------------------------------------ 内部
 
@@ -57,29 +57,16 @@ class MenuService:
     async def _fetch_nutrition_raw(self) -> ProviderResult:
         return await self._mcp.get_nutrition()
 
-    async def _collect_snapshot(self, store_code: str) -> None:
-        """live 成功后刷新快照（菜单 + 门店 + 营养）。失败不影响主流程。"""
+    async def _collect_snapshot(self, store_code: str, menu_result: ProviderResult) -> None:
+        """保存已取得的菜单；不为可选快照重复发起网络请求。"""
         try:
-            menu_result = await self._fetch_menu_raw(store_code)
-            stores_result = await self._fetch_stores_raw(
-                settings.default_city, settings.default_store_keyword
-            )
-            try:
-                nutrition_result = await self._fetch_nutrition_raw()
-            except McpError:
-                nutrition_result = None  # 营养拉取失败不阻塞快照
-
-            existing = MenuSnapshot(store_code=store_code, fetched_at=menu_result.fetched_at)
+            from ..providers.snapshot_provider import load_snapshot
+            existing = load_snapshot(store_code) or MenuSnapshot(store_code=store_code)
+            existing.fetched_at = menu_result.fetched_at
             existing.menu = menu_result.data
             existing.trace_ids["query-meals"] = menu_result.trace_id or ""
-            if stores_result is not None:
-                existing.stores = stores_result.data
-                existing.trace_ids["query-nearby-stores"] = stores_result.trace_id or ""
-            if nutrition_result is not None:
-                existing.nutrition = nutrition_result.data
-                existing.trace_ids["list-nutrition-foods"] = nutrition_result.trace_id or ""
             save_snapshot(existing)
-        except (McpError, McpTimeout):
+        except (OSError, ValueError):
             pass  # 快照刷新失败只记录，不向上抛
 
     # ------------------------------------------------------------ 对外
@@ -91,8 +78,10 @@ class MenuService:
         keyword = keyword or settings.default_store_keyword
         mode = settings.data_mode
 
-        if self._stores_cache and self._stores_cache.valid():
-            cached: StoreListOut = self._stores_cache.value  # type: ignore[assignment]
+        cache_key = (mode, city, keyword)
+        cached_entry = self._stores_cache.get(cache_key)
+        if cached_entry and cached_entry.valid():
+            cached: StoreListOut = cached_entry.value  # type: ignore[assignment]
             return cached
 
         result: Optional[ProviderResult] = None
@@ -125,7 +114,7 @@ class MenuService:
             fetched_at=result.fetched_at if result else "",
             degraded_reason=degraded,
         )
-        self._stores_cache = _CacheEntry(out)
+        self._stores_cache[cache_key] = _CacheEntry(out)
         return out
 
     async def get_menu(self, store_code: str) -> MenuOut:
@@ -143,7 +132,7 @@ class MenuService:
             try:
                 result = await self._fetch_menu_raw(store_code)
                 # live 成功：刷新快照作为演示兜底与调用证据
-                await self._collect_snapshot(store_code)
+                await self._collect_snapshot(store_code, result)
             except McpTimeout as exc:
                 if mode == "live":
                     raise
@@ -172,6 +161,15 @@ class MenuService:
         )
         self._menu_cache[cache_key] = _CacheEntry(out)
         return out
+
+    async def get_planning_context(self, store_code: str, menu: Optional[MenuOut] = None) -> PlanningContext:
+        """当前已核实数据仅含菜单；套餐选配/卡费/活动缺失时保留空值。"""
+        menu = menu or await self.get_menu(store_code)
+        return PlanningContext(
+            store_code=store_code, data_source=menu.data_source,
+            fetched_at=menu.fetched_at,
+            price_basis="demo_snapshot" if menu.data_source == "demo_snapshot" else "menu_estimate",
+        )
 
     async def aclose(self) -> None:
         await self._mcp.aclose()
