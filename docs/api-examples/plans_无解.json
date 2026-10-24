@@ -1,0 +1,28 @@
+{
+  "code": 0,
+  "data": {
+    "plans": [],
+    "requirements": {
+      "people": 6,
+      "budget_type": "total",
+      "budget_fen": 3000,
+      "dietary_constraints": [
+        {
+          "kind": "non_spicy",
+          "people": 2
+        }
+      ],
+      "appetite": "normal",
+      "preferred_tags": []
+    },
+    "total_budget_fen": 3000,
+    "data_source": "live_mcp",
+    "fetched_at": "2026-10-24 11:49:54",
+    "degraded_reason": null,
+    "unsatisfiable_reason": "最便宜的可行组合也要 101.4 元，超出预算 30.0 元；建议提高预算或减少人数",
+    "suggestions": [
+      "当前为接口演示样例（demo_sample）：组合与约束校验为简化逻辑，正式算法由 B 的 backend/skill 模块接入后替换"
+    ]
+  },
+  "msg": "ok"
+}

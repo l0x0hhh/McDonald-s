@@ -1,0 +1,56 @@
+{
+  "code": 0,
+  "data": {
+    "stores": [
+      {
+        "store_code": "1400011",
+        "name": "麦当劳广州今日广场餐厅",
+        "address": "体育西路77号首层及二层",
+        "distance": 82,
+        "business_status": true,
+        "business_hours": "00:00-23:59",
+        "supports_reservation": true
+      },
+      {
+        "store_code": "1400401",
+        "name": "麦当劳广州维多利广场餐厅",
+        "address": "体育西路101号维多利广场首层及二层部分",
+        "distance": 418,
+        "business_status": true,
+        "business_hours": "07:00-23:00",
+        "supports_reservation": true
+      },
+      {
+        "store_code": "1400194",
+        "name": "麦当劳广州正佳五楼餐厅",
+        "address": "天河路228号正佳广场五楼561铺",
+        "distance": 547,
+        "business_status": true,
+        "business_hours": "10:00-22:30",
+        "supports_reservation": true
+      },
+      {
+        "store_code": "1400489",
+        "name": "麦当劳广州富力盈通餐厅",
+        "address": "珠江新城华夏路30号富力盈通大厦首层108号商铺",
+        "distance": 563,
+        "business_status": true,
+        "business_hours": "00:00-23:59",
+        "supports_reservation": true
+      },
+      {
+        "store_code": "1400246",
+        "name": "麦当劳广州花城大道第二餐厅(花城汇北区)",
+        "address": "花城大道89号花城汇北区负一层1065-2、1065-3号",
+        "distance": 586,
+        "business_status": true,
+        "business_hours": "07:30-22:00",
+        "supports_reservation": true
+      }
+    ],
+    "data_source": "live_mcp",
+    "fetched_at": "2026-10-24 11:51:17",
+    "degraded_reason": null
+  },
+  "msg": "ok"
+}

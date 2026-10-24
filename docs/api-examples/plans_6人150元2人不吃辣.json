@@ -1,0 +1,312 @@
+{
+  "code": 0,
+  "data": {
+    "plans": [
+      {
+        "plan_id": "184a7cd003da",
+        "type": "cheapest",
+        "title": "最省方案",
+        "summary": "",
+        "items": [
+          {
+            "code": "9900015602",
+            "name": "大堡口福三件套",
+            "quantity": 2,
+            "unit_price_fen": 2290,
+            "original_unit_price_fen": 4800,
+            "line_total_fen": 4580,
+            "servings": 1,
+            "spicy_level": "mild",
+            "image": "https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_9900015602_320.png",
+            "nutrition": {
+              "energy_kcal": null,
+              "protein_g": null,
+              "fat_g": null,
+              "carbohydrate_g": null,
+              "sodium_mg": null,
+              "matched": false,
+              "source": "mcd_mcp:list-nutrition-foods"
+            }
+          },
+          {
+            "code": "9900015568",
+            "name": "精选超值随心配",
+            "quantity": 4,
+            "unit_price_fen": 1390,
+            "original_unit_price_fen": 1390,
+            "line_total_fen": 5560,
+            "servings": 1,
+            "spicy_level": "unknown",
+            "image": "https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_9900015568_320.png",
+            "nutrition": {
+              "energy_kcal": null,
+              "protein_g": null,
+              "fat_g": null,
+              "carbohydrate_g": null,
+              "sodium_mg": null,
+              "matched": false,
+              "source": "mcd_mcp:list-nutrition-foods"
+            }
+          }
+        ],
+        "subtotal_fen": 15160,
+        "total_fen": 10140,
+        "budget_fen": 15000,
+        "remaining_fen": 4860,
+        "servings_total": 6,
+        "non_spicy_servings": 2,
+        "reasons": [
+          "共 6 人份，其中不辣餐份 2 份",
+          "按菜单现价合计 101.4 元（原价口径 151.6 元）",
+          "最省口径：候选套餐中应付金额最低（不含需麦金卡的商品）"
+        ],
+        "checks": [
+          {
+            "name": "预算",
+            "satisfied": true,
+            "detail": "应付 101.4 元 / 预算 150.0 元"
+          },
+          {
+            "name": "人数",
+            "satisfied": true,
+            "detail": "可满足 6 人份 / 共 6 人"
+          },
+          {
+            "name": "忌口",
+            "satisfied": true,
+            "detail": "不辣餐份 2 / 需要 2"
+          },
+          {
+            "name": "无需开卡",
+            "satisfied": true,
+            "detail": "本样例只选用无需麦金卡的商品，避开随单购差价"
+          }
+        ]
+      },
+      {
+        "plan_id": "844bd740fb8a",
+        "type": "balanced",
+        "title": "搭配均衡方案",
+        "summary": "",
+        "items": [
+          {
+            "code": "9900015602",
+            "name": "大堡口福三件套",
+            "quantity": 2,
+            "unit_price_fen": 2290,
+            "original_unit_price_fen": 4800,
+            "line_total_fen": 4580,
+            "servings": 1,
+            "spicy_level": "mild",
+            "image": "https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_9900015602_320.png",
+            "nutrition": {
+              "energy_kcal": null,
+              "protein_g": null,
+              "fat_g": null,
+              "carbohydrate_g": null,
+              "sodium_mg": null,
+              "matched": false,
+              "source": "mcd_mcp:list-nutrition-foods"
+            }
+          },
+          {
+            "code": "9900015568",
+            "name": "精选超值随心配",
+            "quantity": 2,
+            "unit_price_fen": 1390,
+            "original_unit_price_fen": 1390,
+            "line_total_fen": 2780,
+            "servings": 1,
+            "spicy_level": "unknown",
+            "image": "https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_9900015568_320.png",
+            "nutrition": {
+              "energy_kcal": null,
+              "protein_g": null,
+              "fat_g": null,
+              "carbohydrate_g": null,
+              "sodium_mg": null,
+              "matched": false,
+              "source": "mcd_mcp:list-nutrition-foods"
+            }
+          },
+          {
+            "code": "9900013304",
+            "name": "人气经典随心配",
+            "quantity": 2,
+            "unit_price_fen": 1490,
+            "original_unit_price_fen": 1490,
+            "line_total_fen": 2980,
+            "servings": 1,
+            "spicy_level": "unknown",
+            "image": "https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_9900013304_320.png",
+            "nutrition": {
+              "energy_kcal": null,
+              "protein_g": null,
+              "fat_g": null,
+              "carbohydrate_g": null,
+              "sodium_mg": null,
+              "matched": false,
+              "source": "mcd_mcp:list-nutrition-foods"
+            }
+          }
+        ],
+        "subtotal_fen": 15360,
+        "total_fen": 10340,
+        "budget_fen": 15000,
+        "remaining_fen": 4660,
+        "servings_total": 6,
+        "non_spicy_servings": 2,
+        "reasons": [
+          "共 6 人份，其中不辣餐份 2 份",
+          "按菜单现价合计 103.4 元（原价口径 153.6 元）",
+          "均衡口径：每个商品最多 2 份，尽量覆盖不同主食"
+        ],
+        "checks": [
+          {
+            "name": "预算",
+            "satisfied": true,
+            "detail": "应付 103.4 元 / 预算 150.0 元"
+          },
+          {
+            "name": "人数",
+            "satisfied": true,
+            "detail": "可满足 6 人份 / 共 6 人"
+          },
+          {
+            "name": "忌口",
+            "satisfied": true,
+            "detail": "不辣餐份 2 / 需要 2"
+          },
+          {
+            "name": "无需开卡",
+            "satisfied": true,
+            "detail": "本样例只选用无需麦金卡的商品，避开随单购差价"
+          }
+        ]
+      },
+      {
+        "plan_id": "5b7eaf4a9eed",
+        "type": "taste",
+        "title": "口味匹配方案",
+        "summary": "",
+        "items": [
+          {
+            "code": "9900015602",
+            "name": "大堡口福三件套",
+            "quantity": 2,
+            "unit_price_fen": 2290,
+            "original_unit_price_fen": 4800,
+            "line_total_fen": 4580,
+            "servings": 1,
+            "spicy_level": "mild",
+            "image": "https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_9900015602_320.png",
+            "nutrition": {
+              "energy_kcal": null,
+              "protein_g": null,
+              "fat_g": null,
+              "carbohydrate_g": null,
+              "sodium_mg": null,
+              "matched": false,
+              "source": "mcd_mcp:list-nutrition-foods"
+            }
+          },
+          {
+            "code": "9900015568",
+            "name": "精选超值随心配",
+            "quantity": 3,
+            "unit_price_fen": 1390,
+            "original_unit_price_fen": 1390,
+            "line_total_fen": 4170,
+            "servings": 1,
+            "spicy_level": "unknown",
+            "image": "https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_9900015568_320.png",
+            "nutrition": {
+              "energy_kcal": null,
+              "protein_g": null,
+              "fat_g": null,
+              "carbohydrate_g": null,
+              "sodium_mg": null,
+              "matched": false,
+              "source": "mcd_mcp:list-nutrition-foods"
+            }
+          },
+          {
+            "code": "9900013304",
+            "name": "人气经典随心配",
+            "quantity": 1,
+            "unit_price_fen": 1490,
+            "original_unit_price_fen": 1490,
+            "line_total_fen": 1490,
+            "servings": 1,
+            "spicy_level": "unknown",
+            "image": "https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_9900013304_320.png",
+            "nutrition": {
+              "energy_kcal": null,
+              "protein_g": null,
+              "fat_g": null,
+              "carbohydrate_g": null,
+              "sodium_mg": null,
+              "matched": false,
+              "source": "mcd_mcp:list-nutrition-foods"
+            }
+          }
+        ],
+        "subtotal_fen": 15260,
+        "total_fen": 10240,
+        "budget_fen": 15000,
+        "remaining_fen": 4760,
+        "servings_total": 6,
+        "non_spicy_servings": 2,
+        "reasons": [
+          "共 6 人份，其中不辣餐份 2 份",
+          "按菜单现价合计 102.4 元（原价口径 152.6 元）",
+          "口味口径：优先选择与偏好标签匹配的商品（不突破忌口与预算）"
+        ],
+        "checks": [
+          {
+            "name": "预算",
+            "satisfied": true,
+            "detail": "应付 102.4 元 / 预算 150.0 元"
+          },
+          {
+            "name": "人数",
+            "satisfied": true,
+            "detail": "可满足 6 人份 / 共 6 人"
+          },
+          {
+            "name": "忌口",
+            "satisfied": true,
+            "detail": "不辣餐份 2 / 需要 2"
+          },
+          {
+            "name": "无需开卡",
+            "satisfied": true,
+            "detail": "本样例只选用无需麦金卡的商品，避开随单购差价"
+          }
+        ]
+      }
+    ],
+    "requirements": {
+      "people": 6,
+      "budget_type": "total",
+      "budget_fen": 15000,
+      "dietary_constraints": [
+        {
+          "kind": "non_spicy",
+          "people": 2
+        }
+      ],
+      "appetite": "normal",
+      "preferred_tags": []
+    },
+    "total_budget_fen": 15000,
+    "data_source": "live_mcp",
+    "fetched_at": "2026-10-24 11:49:54",
+    "degraded_reason": null,
+    "unsatisfiable_reason": null,
+    "suggestions": [
+      "当前为接口演示样例（demo_sample）：组合与约束校验为简化逻辑，正式算法由 B 的 backend/skill 模块接入后替换"
+    ]
+  },
+  "msg": "ok"
+}

@@ -1,0 +1,56 @@
+{
+  "code": 0,
+  "data": {
+    "order_id": "e0f0df0672e9",
+    "plan_id": "184a7cd003da",
+    "store_code": "1400011",
+    "items": [
+      {
+        "code": "9900015602",
+        "name": "大堡口福三件套",
+        "quantity": 2,
+        "unit_price_fen": 2290,
+        "original_unit_price_fen": 4800,
+        "line_total_fen": 4580,
+        "servings": 1,
+        "spicy_level": "mild",
+        "image": "https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_9900015602_320.png",
+        "nutrition": {
+          "energy_kcal": null,
+          "protein_g": null,
+          "fat_g": null,
+          "carbohydrate_g": null,
+          "sodium_mg": null,
+          "matched": false,
+          "source": "mcd_mcp:list-nutrition-foods"
+        }
+      },
+      {
+        "code": "9900015568",
+        "name": "精选超值随心配",
+        "quantity": 4,
+        "unit_price_fen": 1390,
+        "original_unit_price_fen": 1390,
+        "line_total_fen": 5560,
+        "servings": 1,
+        "spicy_level": "unknown",
+        "image": "https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_9900015568_320.png",
+        "nutrition": {
+          "energy_kcal": null,
+          "protein_g": null,
+          "fat_g": null,
+          "carbohydrate_g": null,
+          "sodium_mg": null,
+          "matched": false,
+          "source": "mcd_mcp:list-nutrition-foods"
+        }
+      }
+    ],
+    "total_fen": 10140,
+    "status": "simulated",
+    "is_demo": true,
+    "notice": "模拟结算：不产生真实扣款，不构成履约承诺",
+    "created_at": "2026-10-24T11:51:17+08:00"
+  },
+  "msg": "ok"
+}

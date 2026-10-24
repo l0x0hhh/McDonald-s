@@ -1,0 +1,24 @@
+{
+  "code": 0,
+  "data": {
+    "requirements": {
+      "people": 6,
+      "budget_type": "total",
+      "budget_fen": 15000,
+      "dietary_constraints": [
+        {
+          "kind": "non_spicy",
+          "people": 2
+        }
+      ],
+      "appetite": "normal",
+      "preferred_tags": []
+    },
+    "missing_fields": [],
+    "follow_up": null,
+    "ready": true,
+    "parse_source": "rule",
+    "notes": []
+  },
+  "msg": "ok"
+}

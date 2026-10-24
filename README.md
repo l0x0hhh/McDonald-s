@@ -3,7 +3,25 @@
 
 面向多人聚餐的 AI 点餐助手：根据人数、预算和饮食限制，结合麦当劳 MCP 数据生成可解释的餐品方案。
 
-**当前状态：方案阶段。仓库目前只有项目文档，尚无可运行的业务代码、已验证调用证据或实际 WorkBuddy 开发记录。** 下列功能和目录均为开发计划，不能将本仓库当前状态当作已完成的参赛作品。
+**当前状态：A 的后端已可运行，B 的正式算法与 C 的前端尚未接入。**
+
+已实现并实测（2026-10-24）：
+- 后端四个接口（选店 / 需求解析 / 方案生成 / 模拟结算）全部跑通，使用 FastAPI。
+- **真实麦当劳 MCP 集成已验证**：门店、菜单、营养数据均来自真实调用，非静态编造。
+- 数据适配含辣度本地规则（MCP 无辣度字段）、随单购麦金卡价格陷阱标记。
+- `live` / `demo` / `auto` 三种运行模式；真实数据失败时降级到本地快照并明示原因。
+- 模拟结算带 `is_demo=true` 标识，金额由服务端方案重建，不信前端自报。
+
+尚未实现：
+- **B 的正式组合与优惠算法**：当前 `/plans` 走 `services/sample_planner.py` 演示样例，
+  响应 `suggestions` 会标注 `demo_sample`，不冒充正式算法。
+- **B 的 LLM 需求提取**：当前为内置规则解析（`parse_source=rule`）。
+- **C 的前端页面**：仓库暂无 `frontend/`。
+- 真实支付、真实下单、营养精确计算均不在本次范围。
+
+B/C 对接方式见[接口与模块契约](./docs/接口与模块契约.md)，
+MCP 实测结论见[能力核实报告](./docs/mcp能力核实报告.md)。
+下列未标注完成的功能仍为开发计划，不能把本仓库当作已完成参赛作品。
 
 ## 项目方案
 
@@ -37,18 +55,39 @@ A 维护公共模型与入口，B 的算法直接在后端进程内调用，C �
 
 拟用技术：Vite + React + TypeScript、Python 3.11 + FastAPI、MCP Python SDK、一个选定的 LLM 供应商、JSON 快照；持久化有需要再增加 SQLite。
 
+## 运行后端（已实测）
+
+```bash
+# 仓库根目录
+python -m venv .venv
+.venv/Scripts/python.exe -m pip install -r backend/requirements.txt   # Windows
+# .venv/bin/python -m pip install -r backend/requirements.txt         # macOS/Linux
+
+# 复制 backend/.env.example 为 backend/.env，填入 MCD_MCP_URL / MCD_MCP_TOKEN
+# 没有凭据时把 DATA_MODE 设为 demo，即可用本地快照跑通全流程
+
+.venv/Scripts/python.exe -m uvicorn backend.main:app --port 8000 --reload
+```
+
+- 接口调试页：`http://127.0.0.1:8000/docs`；健康检查：`GET /healthz`。
+- 本地验证环境：Python 3.13 + fastapi 0.162 + httpx 0.28。
+- 演示快照刷新：`.venv/Scripts/python.exe -m backend.scripts.build_snapshot --store 1400011`。
+  快照含采集时间与 traceId，是脱敏后的真实调用证据。
+- 前端启动方式待 C 补充。
+
 ## 开发与交付待办
 
-- [ ] 建立业务代码和依赖清单，填写经过实际使用的安装、配置和启动步骤。
-- [ ] 真实 MCP 读取结果进入方案生成；记录脱敏后的实际调用过程。
+- [x] 建立后端代码与依赖清单，实测安装、配置和启动步骤。
+- [x] 真实 MCP 读取结果进入方案生成；快照记录脱敏后的调用时间与 traceId。
+- [ ] B 接入 `backend/skill` 正式算法（组合、优惠、排序、去重），替换演示样例。
+- [ ] B 接入 `backend/llm.py` 需求提取，替换规则兜底。
+- [ ] C 完成前端可点击流程，覆盖加载、失败、无解、演示标识状态。
 - [ ] 支持 4 人、人均 30 元，以及 6 人、总预算 150 元、2 人不吃辣等场景。
-- [ ] 支持修改需求、无解提示、错误反馈和有明确标识的演示模式。
-- [ ] 完成价格明细与模拟结算。
+  （后端接口已验证这两个场景，待前端与正式算法对齐验收）
+- [ ] 优惠不可叠加与开卡对比的正式口径。
 - [ ] 从真实 WorkBuddy 开发对话整理 workbuddy.md。
 - [ ] 补齐使用说明、实际录屏、海报和开源/模板来源。
 - [ ] 由团队成员在 16:00 前到赛事站提交，确认回执。
-
-当前不提供虚构启动命令，也不预先生成开发对话或“已接入”声明。代码到位后，负责人应更新本 README，明确已实现功能、实际环境、操作步骤和已知限制。
 
 ## 记录与来源
 

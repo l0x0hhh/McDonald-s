@@ -1,0 +1,36 @@
+# 项目数据与本地记录（不提交）
+.workbuddy/
+
+# 运行期生成的方案存取文件（快照 JSON 属于演示数据，保留入库）
+backend/data/plans.json
+.tmp_*
+
+# 环境变量与密钥：麦当劳 MCP Token、模型 API Key 一律只放本地
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Node
+node_modules/
+dist/
+.vite/
+*.local
+
+# 编辑器与系统
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# 演示产物（体积大，按需单独提供）
+*.log
+frontend/dist/
