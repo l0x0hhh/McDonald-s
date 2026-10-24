@@ -1,4 +1,4 @@
-# 修订说明：保留默认轮次数量，按候选内容识别必选饮料，兼容现有接口字段。
+# 整合说明：统一 A 的套餐事实与 B 的严格需求、规划字段，保留旧接口名称。
 """公共数据模型（A 维护，三人共用）。
 
 金额一律使用整数「分」。任何进入前端的金额都是分，前端只负责格式化，
@@ -15,13 +15,13 @@ from __future__ import annotations
 
 from typing import ClassVar, Literal, Optional, Tuple
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
 
 PlanType = Literal["cheapest", "balanced", "taste"]
 SpicyLevel = Literal["spicy", "mild", "unknown"]
 DataSource = Literal["live_mcp", "demo_snapshot"]
 # 餐品在一餐里扮演的角色：主食 / 小食 / 饮料 / 套餐 / 未知
-FoodRole = Literal["main", "side", "beverage", "combo", "unknown"]
+FoodRole = Literal["main", "side", "beverage", "combo", "dessert", "unknown"]
 # 是否含饮料：none 已证实不含 / contains 含（或本身就是）/ unknown 未证实
 BeverageStatus = Literal["none", "contains", "unknown"]
 # 用户自报的会员状态；不能替代账号资格核验，也不自动购卡
@@ -34,28 +34,39 @@ BudgetType = Literal["total", "per_person"]
 
 
 class DietaryConstraint(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     kind: Literal["non_spicy"]
-    people: int = Field(ge=0, le=20, description="需要不辣餐份的人数")
+    people: int = Field(strict=True, ge=0, le=20, description="需要不辣餐份的人数")
 
 
 class Requirements(BaseModel):
-    people: int = Field(ge=1, le=20, description="总人数")
+    model_config = ConfigDict(extra="forbid")
+    people: int = Field(strict=True, ge=1, le=20, description="总人数")
     budget_type: BudgetType = "total"
-    budget_fen: int = Field(ge=0, description="预算，单位分；per_person 时为每人均")
+    budget_fen: int = Field(strict=True, ge=0, description="预算，单位分；per_person 时为每人均")
     dietary_constraints: list[DietaryConstraint] = Field(default_factory=list)
     appetite: Appetite = "normal"
     preferred_tags: list[str] = Field(default_factory=list)
     # 不带饮料：true 代表整单不含饮品（含茶、牛奶、咖啡等）；
     # false 代表「未限制」，不是「必须配饮料」
-    exclude_beverage: bool = False
+    exclude_beverage: bool = Field(default=False, strict=True)
     # 用户自报的当前会员状态，只用于比较场景，不替代账号资格核验
     membership_status: MembershipStatus = "unknown"
     # 习惯分析：每月用餐次数，0 与「未提供」分开
-    meal_frequency_per_month: Optional[int] = Field(None, ge=0, le=200)
+    meal_frequency_per_month: Optional[int] = Field(None, strict=True, ge=0, le=200)
     # 习惯分析：想要分析的月数
-    habit_horizon_months: Optional[int] = Field(None, ge=1, le=60)
+    habit_horizon_months: Optional[int] = Field(None, strict=True, ge=1, le=60)
     # 常买品类，与本餐 preferred_tags 分开；不等于真实订单历史
     habitual_tags: list[str] = Field(default_factory=list)
+
+    # 完整需求拒绝矛盾；草稿仍保留原声明并追问，不截断不辣人数。
+    @model_validator(mode="after")
+    def validate_constraints(self):
+        if len(self.dietary_constraints) > 1:
+            raise ValueError("non_spicy 忌口条件只能有一条")
+        if self.non_spicy_declared > self.people:
+            raise ValueError("不辣人数不能超过总人数，请确认人数")
+        return self
 
     @property
     def total_budget_fen(self) -> int:
@@ -70,8 +81,8 @@ class Requirements(BaseModel):
 
     @property
     def non_spicy_people(self) -> int:
-        """规划口径的不辣餐份需求：收敛到总人数，避免出现超过人数的份数目标。"""
-        return min(self.non_spicy_declared, self.people)
+        """完整需求已检查矛盾，直接使用用户确认的人数。"""
+        return self.non_spicy_declared
 
     def to_draft(self) -> "RequirementsDraft":
         return RequirementsDraft(**self.model_dump())
@@ -84,35 +95,38 @@ class RequirementsDraft(BaseModel):
     否则无法区分「用户说 0 元」和「用户还没说」。
     """
 
-    people: Optional[int] = Field(None, ge=1, le=20)
+    model_config = ConfigDict(extra="forbid")
+    people: Optional[int] = Field(None, strict=True, ge=1, le=20)
     budget_type: Optional[BudgetType] = None
-    budget_fen: Optional[int] = Field(None, ge=0)
-    dietary_constraints: Optional[list[DietaryConstraint]] = None
-    appetite: Optional[Appetite] = None
-    preferred_tags: Optional[list[str]] = None
-    exclude_beverage: Optional[bool] = None
-    membership_status: Optional[MembershipStatus] = None
-    meal_frequency_per_month: Optional[int] = Field(None, ge=0, le=200)
-    habit_horizon_months: Optional[int] = Field(None, ge=1, le=60)
-    habitual_tags: Optional[list[str]] = None
+    budget_fen: Optional[int] = Field(None, strict=True, ge=0)
+    dietary_constraints: Optional[list[DietaryConstraint]] = Field(default_factory=list)
+    appetite: Optional[Appetite] = "normal"
+    preferred_tags: Optional[list[str]] = Field(default_factory=list)
+    exclude_beverage: Optional[bool] = Field(default=False, strict=True)
+    membership_status: Optional[MembershipStatus] = "unknown"
+    meal_frequency_per_month: Optional[int] = Field(None, strict=True, ge=0, le=200)
+    habit_horizon_months: Optional[int] = Field(None, strict=True, ge=1, le=60)
+    habitual_tags: Optional[list[str]] = Field(default_factory=list)
+    pending_fields: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
 
     REQUIRED_FIELDS: ClassVar[Tuple[str, ...]] = ("people", "budget_fen")
 
     def missing_fields(self) -> list[str]:
         """返回仍缺的必填项；忌口人数未确认时单独列为 non_spicy_people。"""
-        missing: list[str] = []
+        missing: list[str] = list(self.pending_fields)
         if self.people is None:
             missing.append("people")
-        if self.budget_fen is None:
+        if self.budget_fen is None or self.budget_type is None:
             missing.append("budget")
         if self.non_spicy_unknown():
             missing.append("non_spicy_people")
-        return missing
+        return list(dict.fromkeys(missing))
 
     def non_spicy_unknown(self) -> bool:
         """说了「有人不吃辣」但没给人数时为真。"""
         if self.dietary_constraints is None:
-            return False
+            return True
         return any(c.people == 0 for c in self.dietary_constraints if c.kind == "non_spicy")
 
     def non_spicy_declared(self) -> int:
@@ -134,6 +148,8 @@ class RequirementsDraft(BaseModel):
 
     def to_requirements(self) -> Requirements:
         """补齐默认值后转成完整需求；调用前必须先确认 is_complete()。"""
+        if not self.is_complete():
+            raise ValueError("需求尚未确认完整，不能生成正式方案")
         return Requirements(
             people=self.people or 0,
             budget_type=self.budget_type or "total",
@@ -151,11 +167,11 @@ class RequirementsDraft(BaseModel):
     def merge(self, patch: "RequirementsDraft") -> "RequirementsDraft":
         """用本轮新解析出的信息覆盖已有草稿，未涉及的字段保持原值。"""
         data = self.model_dump()
-        for key, value in patch.model_dump().items():
+        for key in patch.model_fields_set:
+            value = getattr(patch, key)
             if value is None:
                 continue
-            if isinstance(value, list) and not value:
-                continue  # 空列表视为「本轮没提到」，不覆盖已有内容
+            # 显式空列表可清除忌口/偏好；未提及的默认字段不覆盖上一轮。
             data[key] = value
         return RequirementsDraft(**data)
 
@@ -206,6 +222,14 @@ class MenuItemOut(BaseModel):
     role_evidence: Optional[str] = None
     # 非餐品（周边商品、导航项、蘸酱）：任何方案都不得选用
     is_merchandise: bool = False
+    # B 只使用已确认餐份和价格；用户自报持卡不等于资格核验通过。
+    servings_verified: bool = False
+    non_spicy_servings: int = Field(default=0, strict=True, ge=0)
+    side_servings: int = Field(default=0, strict=True, ge=0)
+    available: bool = True
+    price_verified: bool = True
+    eligibility_verified: bool = False
+    max_quantity: Optional[int] = Field(default=None, strict=True, ge=0)
 
 
 class MenuOut(BaseModel):
@@ -299,9 +323,9 @@ class SelectedOptionOut(BaseModel):
 
     round_id: str
     round_name: Optional[str] = None
-    option_code: str
-    option_name: Optional[str] = None
-    quantity: int = 1
+    option_code: str = Field(validation_alias=AliasChoices("option_code", "code"))
+    option_name: Optional[str] = Field(default=None, validation_alias=AliasChoices("option_name", "name"))
+    quantity: int = Field(default=1, strict=True, ge=1)
     diff_price_fen: Optional[int] = None
 
 
@@ -311,8 +335,9 @@ class SelectedOptionOut(BaseModel):
 class PlanningContext(BaseModel):
     """A 向 B 提供的本餐事实。B 不直接向上游请求，只用这里的数据。"""
 
-    store_code: str
-    combo_details: dict[str, ComboDetailOut] = Field(default_factory=dict)
+    store_code: str = ""
+    # A 使用结构模型；兼容 B 独立模块注入的已核实事实字典。
+    combo_details: dict[str, ComboDetailOut | dict] = Field(default_factory=dict)
     data_source: DataSource = "demo_snapshot"
     fetched_at: str = ""
     # 价格口径：menu_estimate 菜单参考价 / live_quote 真实报价 / demo_snapshot 演示快照
@@ -320,12 +345,16 @@ class PlanningContext(BaseModel):
     # 本次实际可用的能力，B 不得假设未列出的能力已生效
     capabilities: dict[str, bool] = Field(default_factory=dict)
     notes: list[str] = Field(default_factory=list)
+    membership_facts: Optional[dict] = None
+    promotions: list[dict] = Field(default_factory=list)
+    campaigns: list[dict] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------- 需求解析
 
 
 class ChatIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     message: str = ""
     # 可接收部分需求草稿，兼容已完整的原 Requirements 对象
     current: Optional[RequirementsDraft] = None
@@ -353,16 +382,23 @@ class NutritionOut(BaseModel):
     sodium_mg: Optional[float] = None
     matched: bool = False
     source: str = "mcd_mcp:list-nutrition-foods"
+    calcium_mg: Optional[float] = None
+    fiber_g: Optional[float] = None
+    serving_size: Optional[str] = None
+    fetched_at: Optional[str] = None
+    estimated: bool = False
+    metric_sources: dict = Field(default_factory=dict)
+    data_source: Optional[DataSource] = None
 
 
 class PlanItemOut(BaseModel):
     code: str
     name: str
-    quantity: int
-    unit_price_fen: int
-    original_unit_price_fen: int
-    line_total_fen: int
-    servings: int
+    quantity: int = Field(strict=True, ge=1)
+    unit_price_fen: int = Field(strict=True, ge=0)
+    original_unit_price_fen: int = Field(strict=True, ge=0)
+    line_total_fen: int = Field(strict=True, ge=0)
+    servings: int = Field(strict=True, ge=0)
     spicy_level: SpicyLevel
     image: Optional[str] = None
     # 必要规格：套餐内的主食/小食/饮料选择等。由 B 的算法在拆套餐时填写，
@@ -371,6 +407,11 @@ class PlanItemOut(BaseModel):
     # 结构化选配：A 用它回传真实报价，不能只凭中文 spec 重新猜商品
     selected_options: list[SelectedOptionOut] = Field(default_factory=list)
     nutrition: Optional[NutritionOut] = None
+    food_role: FoodRole = "unknown"
+    beverage_status: BeverageStatus = "unknown"
+    non_spicy_servings: int = Field(default=0, strict=True, ge=0)
+    side_servings: int = Field(default=0, strict=True, ge=0)
+    components: list[dict] = Field(default_factory=list)
 
 
 class ConstraintCheck(BaseModel):
@@ -416,12 +457,17 @@ class PlanOut(BaseModel):
     non_spicy_servings: int
     reasons: list[str] = Field(default_factory=list)
     checks: list[ConstraintCheck] = Field(default_factory=list)
-    # 开卡对比：本版未启用，恒为 null；接入后由 B 填充
-    membership_comparison: Optional[MembershipComparisonOut] = None
+    # B 返回缺事实状态时保留 null 金额，不套用旧占位模型的默认金额/报价依据。
+    membership_comparison: Optional[dict] = None
+    nutrition_summary: Optional[dict] = None
+    side_servings_total: int = 0
+    price_basis: Literal["menu_estimate", "live_quote", "demo_snapshot"] = "menu_estimate"
+    applied_promotions: list[dict] = Field(default_factory=list)
 
 
 class PlanRequest(BaseModel):
-    store_code: str
+    model_config = ConfigDict(extra="forbid")
+    store_code: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
     requirements: Requirements
 
 
@@ -436,6 +482,8 @@ class PlanResponse(BaseModel):
     suggestions: list[str] = Field(default_factory=list)
     # 本次请求实际可用的能力，C 据此提示；不要只凭字段存在判断功能可用
     capabilities: dict[str, bool] = Field(default_factory=dict)
+    algorithm_source: Literal["skill", "demo_sample", "unavailable"] = "demo_sample"
+    campaigns: list[dict] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------- 结算

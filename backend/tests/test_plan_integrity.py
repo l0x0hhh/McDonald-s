@@ -1,4 +1,4 @@
-# 修订说明：覆盖默认饮料、虚报餐份、选配差价及能力误报；本轮仅编写，未执行。
+# 整合说明：增加 A/B 套餐差价接线与算法失败拒绝场景；本轮未执行。
 """事实边界回归用例，全部使用内存夹具，不请求真实 MCP。"""
 
 import asyncio
@@ -191,7 +191,7 @@ def test_legacy_three_parameter_skill_remains_callable():
     assert calls == [1]
 
 
-def test_skill_failure_downgrades_reported_capabilities(tmp_path):
+def test_skill_failure_cannot_bypass_appetite_and_taste_constraints(tmp_path):
     from backend.services.combo_service import ComboDetailsResult
     from backend.services.plan_service import PlanService
     from backend.services.plan_store import PlanStore
@@ -212,9 +212,47 @@ def test_skill_failure_downgrades_reported_capabilities(tmp_path):
     service._skill_module = SimpleNamespace(generate_plans=broken, CAPABILITIES={
         "exclude_beverage": True, "appetite_planning": True, "taste_matching": True,
     })
-    out = asyncio.run(service.create_plans(PlanRequest(store_code="store", requirements=Requirements(
-        people=1, budget_fen=5000, appetite="heavy", preferred_tags=["牛肉"], exclude_beverage=True,
-    ))))
-    assert out.plans
-    assert not out.capabilities["appetite_planning"] and not out.capabilities["taste_matching"]
-    assert any("demo_sample" in note for note in out.suggestions)
+    from backend.services.capabilities import CapabilityUnavailable
+    with pytest.raises(CapabilityUnavailable, match="正式方案生成或约束校验失败"):
+        asyncio.run(service.create_plans(PlanRequest(store_code="store", requirements=Requirements(
+            people=1, budget_fen=5000, appetite="heavy", preferred_tags=["牛肉"], exclude_beverage=True,
+        ))))
+    assert not service.store._records
+
+
+def test_adapted_default_combo_survives_both_validators_with_surcharge():
+    from backend.schemas import PlanningContext
+    from backend.services.skill_adapter import adapt_skill_input
+    from backend.skill import generate_plans, validate_plan as validate_decision
+
+    item, detail = combo_fixture()
+    item.food_role = "combo"
+    detail.rounds[1].options[0].diff_price_fen = 200
+    detail.rounds[1].max_quantity = -1
+    context = PlanningContext(store_code="store", combo_details={item.code: detail},
+                              price_basis="demo_snapshot")
+    requirements = Requirements(people=1, budget_fen=5000, appetite="light")
+    adapted, facts = adapt_skill_input([item], context)
+    plans, reason = generate_plans(adapted, requirements, {}, context=facts)
+    assert reason is None and plans
+    plan = plans[0]
+    assert plan.total_fen == 1200 and plan.subtotal_fen == 1400
+    assert item.original_price_fen == 1200, "适配不能污染 A 的原菜单"
+    assert plan.items[0].selected_options[1].option_code == "cola"
+    validate_decision(plan, adapted, requirements, context=facts)
+    assert validate_plan(plan, requirements, {item.code: item}, {item.code: detail},
+                         context=context, strict_details=True) == []
+
+
+@pytest.mark.parametrize("difference", [None, -2000])
+def test_invalid_default_surcharge_is_excluded_before_skill_search(difference):
+    from backend.schemas import PlanningContext
+    from backend.services.skill_adapter import adapt_skill_input
+    from backend.skill import generate_plans
+
+    item, detail = combo_fixture()
+    detail.rounds[1].options[0].diff_price_fen = difference
+    adapted, facts = adapt_skill_input([item], PlanningContext(
+        store_code="store", combo_details={item.code: detail}))
+    plans, reason = generate_plans(adapted, Requirements(people=1, budget_fen=5000), {}, context=facts)
+    assert plans == [] and reason

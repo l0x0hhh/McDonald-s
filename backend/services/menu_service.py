@@ -1,3 +1,4 @@
+# 整合说明：保留 A 的缓存与快照，提供 B 使用的服务端规划上下文。
 """菜单与门店数据服务（A 职责）。
 
 运行模式（见 config.Settings.data_mode）：
@@ -25,7 +26,7 @@ from ..providers import (
 )
 from ..providers.snapshot_provider import load_snapshot
 from ..providers.mapper import map_menu, map_stores
-from ..schemas import MenuOut, StoreListOut
+from ..schemas import MenuOut, PlanningContext, StoreListOut
 from ..config import settings
 
 _CACHE_TTL_SECONDS = 300.0
@@ -61,50 +62,15 @@ class MenuService:
         return await self._mcp.get_nutrition()
 
     async def _collect_snapshot(self, store_code: str, menu_result: ProviderResult) -> None:
-        """live 成功后刷新快照（菜单 + 门店 + 营养）。失败不影响主流程。
-
-        菜单直接复用本次已经拉到的结果，不再为了写快照重复请求一次上游。
-        门店与营养只在快照里还没有时才补拉，避免每次取菜单都额外打两次 MCP。
-        已采集的套餐结构（meal_details）原样保留，不被本次刷新清掉。
-        """
+        """只保存已取得的菜单，保留旧证据，不为快照额外请求默认城市。"""
         try:
-            previous = load_snapshot(store_code)
-
-            stores_result: Optional[ProviderResult] = None
-            if previous is None or previous.stores is None:
-                stores_result = await self._fetch_stores_raw(
-                    settings.default_city, settings.default_store_keyword
-                )
-
-            nutrition_result: Optional[ProviderResult] = None
-            if previous is None or previous.nutrition is None:
-                try:
-                    nutrition_result = await self._fetch_nutrition_raw()
-                except McpError:
-                    nutrition_result = None  # 营养拉取失败不阻塞快照
-
-            snapshot = MenuSnapshot(store_code=store_code, fetched_at=menu_result.fetched_at)
+            snapshot = load_snapshot(store_code) or MenuSnapshot(store_code=store_code)
+            snapshot.fetched_at = menu_result.fetched_at
+            snapshot.data_source = menu_result.data_source
             snapshot.menu = menu_result.data
             snapshot.trace_ids["query-meals"] = menu_result.trace_id or ""
-            snapshot.meal_details = (
-                previous.meal_details if previous is not None else None
-            )
-            if previous is not None:
-                # traceId 保留历史采集证据，缺失时才用本次的覆盖
-                for tool, trace_id in previous.trace_ids.items():
-                    snapshot.trace_ids.setdefault(tool, trace_id)
-            if stores_result is not None:
-                snapshot.stores = stores_result.data
-                snapshot.trace_ids["query-nearby-stores"] = stores_result.trace_id or ""
-            elif previous is not None:
-                snapshot.stores = previous.stores
-            if nutrition_result is not None:
-                snapshot.nutrition = nutrition_result.data
-                snapshot.trace_ids["list-nutrition-foods"] = nutrition_result.trace_id or ""
-            elif previous is not None:
-                snapshot.nutrition = previous.nutrition
             save_snapshot(snapshot)
-        except (McpError, McpTimeout, OSError):
+        except (McpError, McpTimeout, OSError, ValueError):
             # 快照刷新失败只记录，不向上抛：绝不能因为写盘失败
             # 把本次已经成功的在线结果变成错误响应
             pass
@@ -202,6 +168,15 @@ class MenuService:
         )
         self._menu_cache[cache_key] = _CacheEntry(out)
         return out
+
+    async def get_planning_context(self, store_code: str, menu: Optional[MenuOut] = None) -> PlanningContext:
+        """只提供服务端事实；套餐由方案服务注入，缺少的会员/活动保持空值。"""
+        menu = menu or await self.get_menu(store_code)
+        return PlanningContext(
+            store_code=store_code, data_source=menu.data_source,
+            fetched_at=menu.fetched_at,
+            price_basis="demo_snapshot" if menu.data_source == "demo_snapshot" else "menu_estimate",
+        )
 
     async def aclose(self) -> None:
         await self._mcp.aclose()

@@ -1,4 +1,4 @@
-# 修订说明：排除未知现价，核查混合轮次中的饮料，并将未选配餐份保留为估计。
+# 整合说明：保留未知价格排除与套餐映射，向 B 提供核实后的单品餐份。
 """MCP 原始数据 → 公共模型的统一映射（A 职责）。
 
 关键规则（均来自 2026-10-24 实测，详见 docs/mcp能力核实报告.md）：
@@ -232,6 +232,8 @@ def map_menu(store_code: str, raw_menu: Any) -> tuple[list[MenuItemOut], list[st
             # 缺少可用原价时按现价作参考，避免虚构折扣。
             if original_unknown:
                 evidence += "；原价缺失或低于现价，原价参考按现价列示，不计优惠"
+            # 套餐人数不能靠名称估计后交给算法；实际餐份由选配事实重建。
+            main_servings = int(not is_combo and food_role == "main" and is_staple_main(name, category_name))
             items.append(
                 MenuItemOut(
                     code=code,
@@ -242,7 +244,7 @@ def map_menu(store_code: str, raw_menu: Any) -> tuple[list[MenuItemOut], list[st
                     tags=list(meal_ref.get("tags") or []),
                     image=detail.get("image"),
                     is_combo=is_combo,
-                    servings=detect_servings(name),
+                    servings=detect_servings(name) if is_combo else main_servings,
                     spicy_level=classify_spicy(name),
                     requires_membership=requires_membership,
                     membership_note=membership_note,
@@ -250,6 +252,12 @@ def map_menu(store_code: str, raw_menu: Any) -> tuple[list[MenuItemOut], list[st
                     beverage_status=beverage_status,
                     role_evidence=evidence,
                     is_merchandise=is_merch,
+                    servings_verified=not is_combo and not is_merch and food_role != "unknown",
+                    non_spicy_servings=main_servings if classify_spicy(name) == "mild" else 0,
+                    side_servings=int(food_role == "side" and not is_merch),
+                    available=not is_merch,
+                    price_verified=True,
+                    eligibility_verified=False,
                 )
             )
     return items, category_names

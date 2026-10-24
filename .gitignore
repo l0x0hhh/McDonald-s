@@ -1,5 +1,8 @@
+# 整合说明：合并双方忽略规则，开发记录、依赖与临时产物均不入库。
 # 项目数据与本地记录（不提交）
 .workbuddy/
+.worktrees/
+.qa_tmp/
 
 # 运行期生成的方案存取文件（快照 JSON 属于演示数据，保留入库）
 backend/data/plans.json

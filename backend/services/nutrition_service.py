@@ -7,6 +7,7 @@ list-nutrition-foods 返回的是一段 CSV 风格文本（表头在花括号里
 from __future__ import annotations
 
 import time
+import math
 from typing import Optional
 
 from ..providers import McpError, SnapshotMenuProvider
@@ -76,32 +77,37 @@ def _to_float(value: object) -> Optional[float]:
         text = str(value).strip()
         if not text or text.lower() == "null":
             return None
-        return float(text)
+        number = float(text)
+        return number if math.isfinite(number) and number >= 0 else None
     except (TypeError, ValueError):
         return None
 
 
 class NutritionService:
     def __init__(self) -> None:
-        self._cache: Optional[tuple[float, dict]] = None
+        self._cache: dict[str, tuple[float, dict]] = {}
         self._snapshot = SnapshotMenuProvider()
 
     async def get_nutrition_map(self) -> dict[str, NutritionOut]:
         """返回 {商品名: 营养信息}，供 B 的方案模块按名称匹配。"""
-        if self._cache and time.monotonic() < self._cache[0]:
-            return self._cache[1]
+        cached = self._cache.get(settings.data_mode)
+        if cached and time.monotonic() < cached[0]:
+            return cached[1]
 
         raw: Optional[object] = None
+        provider_result = None
         if settings.data_mode in ("live", "auto"):
             try:
-                raw = (await menu_service._fetch_nutrition_raw()).data  # noqa: SLF001
+                provider_result = await menu_service._fetch_nutrition_raw()  # noqa: SLF001
+                raw = provider_result.data
             except McpError:
                 if settings.data_mode == "live":
                     raise
                 raw = None
         if raw is None:
             try:
-                raw = (await self._snapshot.get_nutrition()).data
+                provider_result = await self._snapshot.get_nutrition()
+                raw = provider_result.data
             except FileNotFoundError:
                 raw = None
 
@@ -114,9 +120,13 @@ class NutritionService:
                 fat_g=_to_float(row.get("fat")),
                 carbohydrate_g=_to_float(row.get("carbohydrate")),
                 sodium_mg=_to_float(row.get("sodium")),
+                calcium_mg=_to_float(row.get("calcium")),
                 matched=True,
+                # nutritionDescription 是热量类比文案，不能当成规格或份量。
+                fetched_at=provider_result.fetched_at if provider_result else None,
+                data_source=provider_result.data_source if provider_result else None,
             )
-        self._cache = (time.monotonic() + _CACHE_TTL_SECONDS, result)
+        self._cache[settings.data_mode] = (time.monotonic() + _CACHE_TTL_SECONDS, result)
         return result
 
 

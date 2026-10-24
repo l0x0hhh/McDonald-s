@@ -1,0 +1,956 @@
+{
+  "code": 0,
+  "data": {
+    "plans": [
+      {
+        "plan_id": "3f42d4a212b4",
+        "type": "cheapest",
+        "title": "最省方案",
+        "summary": "3 种商品，主食 2 份、小食 1 份，应付 37.50 元",
+        "items": [
+          {
+            "code": "1450",
+            "name": "麦香鸡",
+            "quantity": 1,
+            "unit_price_fen": 1650,
+            "original_unit_price_fen": 1650,
+            "line_total_fen": 1650,
+            "servings": 1,
+            "spicy_level": "mild",
+            "image": "https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_1450_320.png",
+            "spec": null,
+            "nutrition": {
+              "energy_kcal": 369.0,
+              "protein_g": 15.0,
+              "fat_g": 17.0,
+              "carbohydrate_g": 39.0,
+              "sodium_mg": 731.0,
+              "matched": true,
+              "source": "mcd_mcp:list-nutrition-foods",
+              "calcium_mg": 73.0,
+              "fiber_g": null,
+              "serving_size": null,
+              "fetched_at": "2026-10-24 11:49:55",
+              "estimated": false,
+              "metric_sources": {},
+              "data_source": "demo_snapshot"
+            },
+            "food_role": "main",
+            "beverage_status": "none",
+            "non_spicy_servings": 1,
+            "side_servings": 0,
+            "components": [],
+            "selected_options": []
+          },
+          {
+            "code": "6102",
+            "name": "苹果片",
+            "quantity": 1,
+            "unit_price_fen": 700,
+            "original_unit_price_fen": 700,
+            "line_total_fen": 700,
+            "servings": 0,
+            "spicy_level": "mild",
+            "image": "https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_6102_320.png",
+            "spec": null,
+            "nutrition": {
+              "energy_kcal": 32.0,
+              "protein_g": 0.0,
+              "fat_g": 0.0,
+              "carbohydrate_g": 7.0,
+              "sodium_mg": 0.0,
+              "matched": true,
+              "source": "mcd_mcp:list-nutrition-foods",
+              "calcium_mg": 18.0,
+              "fiber_g": null,
+              "serving_size": null,
+              "fetched_at": "2026-10-24 11:49:55",
+              "estimated": false,
+              "metric_sources": {},
+              "data_source": "demo_snapshot"
+            },
+            "food_role": "side",
+            "beverage_status": "none",
+            "non_spicy_servings": 0,
+            "side_servings": 1,
+            "components": [],
+            "selected_options": []
+          },
+          {
+            "code": "9900008747",
+            "name": "牛肉堡单品精选",
+            "quantity": 1,
+            "unit_price_fen": 1400,
+            "original_unit_price_fen": 1400,
+            "line_total_fen": 1400,
+            "servings": 1,
+            "spicy_level": "unknown",
+            "image": "https://menu-img.mcd.cn/pcm/prod/menu/20260309/product/MS_9900008747_320.gif",
+            "spec": null,
+            "nutrition": null,
+            "food_role": "main",
+            "beverage_status": "none",
+            "non_spicy_servings": 0,
+            "side_servings": 0,
+            "components": [],
+            "selected_options": []
+          }
+        ],
+        "subtotal_fen": 3750,
+        "discount_fen": 0,
+        "total_fen": 3750,
+        "budget_fen": 10000,
+        "remaining_fen": 6250,
+        "servings_total": 2,
+        "non_spicy_servings": 1,
+        "reasons": [
+          "正常饭量按每人 1 份主食、每 2 人至少 1 份小食或额外主食配置",
+          "主食 2 份、小食 1 份；已确认不辣主食 1 份",
+          "价格仅为本次已核实菜单与优惠的有限候选估算，最终报价以 A 核验为准",
+          "最省仅指本次有限候选中的较低应付"
+        ],
+        "checks": [
+          {
+            "name": "预算",
+            "satisfied": true,
+            "detail": "应付 3750 分 / 预算 10000 分"
+          },
+          {
+            "name": "人数",
+            "satisfied": true,
+            "detail": "主食 2 份 / 需要 2 份"
+          },
+          {
+            "name": "忌口",
+            "satisfied": true,
+            "detail": "已确认不辣 1 份 / 需要 1 份"
+          },
+          {
+            "name": "加餐",
+            "satisfied": true,
+            "detail": "小食及额外主食 1 份 / 需要 1 份"
+          },
+          {
+            "name": "不带饮料",
+            "satisfied": true,
+            "detail": "已核实组合不含饮品"
+          },
+          {
+            "name": "资格",
+            "satisfied": true,
+            "detail": "所用餐品资格均已确认或无需会员资格"
+          }
+        ],
+        "side_servings_total": 1,
+        "membership_comparison": {
+          "status": "unavailable",
+          "reason": "缺少已核实的会员报价与卡费事实",
+          "same_basket": null,
+          "without_card_fen": null,
+          "existing_card_food_fen": null,
+          "new_card_food_fen": null,
+          "new_card_total_fen": null,
+          "card_fee_fen": null,
+          "existing_card_saving_fen": null,
+          "net_saving_fen": null,
+          "price_basis": null,
+          "source": null,
+          "fetched_at": null,
+          "assumptions": [],
+          "habit_estimate": null
+        },
+        "nutrition_summary": {
+          "status": "partial",
+          "totals": {
+            "energy_kcal": 401.0,
+            "protein_g": 15.0,
+            "fat_g": 17.0,
+            "carbohydrate_g": 46.0,
+            "sodium_mg": 731.0,
+            "calcium_mg": 91.0,
+            "fiber_g": null
+          },
+          "coverage": {
+            "energy_kcal": {
+              "known_units": 2,
+              "total_units": 3,
+              "total_units_known": true,
+              "unknown_combo_units": 0,
+              "complete": false
+            },
+            "protein_g": {
+              "known_units": 2,
+              "total_units": 3,
+              "total_units_known": true,
+              "unknown_combo_units": 0,
+              "complete": false
+            },
+            "fat_g": {
+              "known_units": 2,
+              "total_units": 3,
+              "total_units_known": true,
+              "unknown_combo_units": 0,
+              "complete": false
+            },
+            "carbohydrate_g": {
+              "known_units": 2,
+              "total_units": 3,
+              "total_units_known": true,
+              "unknown_combo_units": 0,
+              "complete": false
+            },
+            "sodium_mg": {
+              "known_units": 2,
+              "total_units": 3,
+              "total_units_known": true,
+              "unknown_combo_units": 0,
+              "complete": false
+            },
+            "calcium_mg": {
+              "known_units": 2,
+              "total_units": 3,
+              "total_units_known": true,
+              "unknown_combo_units": 0,
+              "complete": false
+            },
+            "fiber_g": {
+              "known_units": 0,
+              "total_units": 3,
+              "total_units_known": true,
+              "unknown_combo_units": 0,
+              "complete": false
+            }
+          },
+          "total_units_known": true,
+          "unknown_combo_units": 0,
+          "missing_items": [
+            {
+              "code": "9900008747",
+              "name": "牛肉堡单品精选",
+              "quantity": 1,
+              "reason": "缺少匹配的营养资料"
+            }
+          ],
+          "missing_metrics": {
+            "energy_kcal": [
+              {
+                "code": "9900008747",
+                "name": "牛肉堡单品精选",
+                "quantity": 1
+              }
+            ],
+            "protein_g": [
+              {
+                "code": "9900008747",
+                "name": "牛肉堡单品精选",
+                "quantity": 1
+              }
+            ],
+            "fat_g": [
+              {
+                "code": "9900008747",
+                "name": "牛肉堡单品精选",
+                "quantity": 1
+              }
+            ],
+            "carbohydrate_g": [
+              {
+                "code": "9900008747",
+                "name": "牛肉堡单品精选",
+                "quantity": 1
+              }
+            ],
+            "sodium_mg": [
+              {
+                "code": "9900008747",
+                "name": "牛肉堡单品精选",
+                "quantity": 1
+              }
+            ],
+            "calcium_mg": [
+              {
+                "code": "9900008747",
+                "name": "牛肉堡单品精选",
+                "quantity": 1
+              }
+            ],
+            "fiber_g": [
+              {
+                "code": "1450",
+                "name": "麦香鸡",
+                "quantity": 1
+              },
+              {
+                "code": "6102",
+                "name": "苹果片",
+                "quantity": 1
+              },
+              {
+                "code": "9900008747",
+                "name": "牛肉堡单品精选",
+                "quantity": 1
+              }
+            ]
+          },
+          "sources": [
+            {
+              "code": "1450",
+              "name": "麦香鸡",
+              "quantity": 1,
+              "metric": "energy_kcal",
+              "source": "mcd_mcp:list-nutrition-foods",
+              "data_source": "demo_snapshot",
+              "estimated": false,
+              "serving_size": null,
+              "fetched_at": "2026-10-24 11:49:55"
+            },
+            {
+              "code": "1450",
+              "name": "麦香鸡",
+              "quantity": 1,
+              "metric": "protein_g",
+              "source": "mcd_mcp:list-nutrition-foods",
+              "data_source": "demo_snapshot",
+              "estimated": false,
+              "serving_size": null,
+              "fetched_at": "2026-10-24 11:49:55"
+            },
+            {
+              "code": "1450",
+              "name": "麦香鸡",
+              "quantity": 1,
+              "metric": "fat_g",
+              "source": "mcd_mcp:list-nutrition-foods",
+              "data_source": "demo_snapshot",
+              "estimated": false,
+              "serving_size": null,
+              "fetched_at": "2026-10-24 11:49:55"
+            },
+            {
+              "code": "1450",
+              "name": "麦香鸡",
+              "quantity": 1,
+              "metric": "carbohydrate_g",
+              "source": "mcd_mcp:list-nutrition-foods",
+              "data_source": "demo_snapshot",
+              "estimated": false,
+              "serving_size": null,
+              "fetched_at": "2026-10-24 11:49:55"
+            },
+            {
+              "code": "1450",
+              "name": "麦香鸡",
+              "quantity": 1,
+              "metric": "sodium_mg",
+              "source": "mcd_mcp:list-nutrition-foods",
+              "data_source": "demo_snapshot",
+              "estimated": false,
+              "serving_size": null,
+              "fetched_at": "2026-10-24 11:49:55"
+            },
+            {
+              "code": "1450",
+              "name": "麦香鸡",
+              "quantity": 1,
+              "metric": "calcium_mg",
+              "source": "mcd_mcp:list-nutrition-foods",
+              "data_source": "demo_snapshot",
+              "estimated": false,
+              "serving_size": null,
+              "fetched_at": "2026-10-24 11:49:55"
+            },
+            {
+              "code": "6102",
+              "name": "苹果片",
+              "quantity": 1,
+              "metric": "energy_kcal",
+              "source": "mcd_mcp:list-nutrition-foods",
+              "data_source": "demo_snapshot",
+              "estimated": false,
+              "serving_size": null,
+              "fetched_at": "2026-10-24 11:49:55"
+            },
+            {
+              "code": "6102",
+              "name": "苹果片",
+              "quantity": 1,
+              "metric": "protein_g",
+              "source": "mcd_mcp:list-nutrition-foods",
+              "data_source": "demo_snapshot",
+              "estimated": false,
+              "serving_size": null,
+              "fetched_at": "2026-10-24 11:49:55"
+            },
+            {
+              "code": "6102",
+              "name": "苹果片",
+              "quantity": 1,
+              "metric": "fat_g",
+              "source": "mcd_mcp:list-nutrition-foods",
+              "data_source": "demo_snapshot",
+              "estimated": false,
+              "serving_size": null,
+              "fetched_at": "2026-10-24 11:49:55"
+            },
+            {
+              "code": "6102",
+              "name": "苹果片",
+              "quantity": 1,
+              "metric": "carbohydrate_g",
+              "source": "mcd_mcp:list-nutrition-foods",
+              "data_source": "demo_snapshot",
+              "estimated": false,
+              "serving_size": null,
+              "fetched_at": "2026-10-24 11:49:55"
+            },
+            {
+              "code": "6102",
+              "name": "苹果片",
+              "quantity": 1,
+              "metric": "sodium_mg",
+              "source": "mcd_mcp:list-nutrition-foods",
+              "data_source": "demo_snapshot",
+              "estimated": false,
+              "serving_size": null,
+              "fetched_at": "2026-10-24 11:49:55"
+            },
+            {
+              "code": "6102",
+              "name": "苹果片",
+              "quantity": 1,
+              "metric": "calcium_mg",
+              "source": "mcd_mcp:list-nutrition-foods",
+              "data_source": "demo_snapshot",
+              "estimated": false,
+              "serving_size": null,
+              "fetched_at": "2026-10-24 11:49:55"
+            }
+          ],
+          "suggestions": [],
+          "note": "仅汇总已匹配规格的已知部分；未知指标不按零计算。"
+        },
+        "price_basis": "demo_snapshot",
+        "applied_promotions": []
+      },
+      {
+        "plan_id": "81b4a8006fbf",
+        "type": "balanced",
+        "title": "搭配多样方案",
+        "summary": "4 种商品，主食 3 份、小食 1 份，应付 53.40 元",
+        "items": [
+          {
+            "code": "1450",
+            "name": "麦香鸡",
+            "quantity": 1,
+            "unit_price_fen": 1650,
+            "original_unit_price_fen": 1650,
+            "line_total_fen": 1650,
+            "servings": 1,
+            "spicy_level": "mild",
+            "image": "https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_1450_320.png",
+            "spec": null,
+            "nutrition": {
+              "energy_kcal": 369.0,
+              "protein_g": 15.0,
+              "fat_g": 17.0,
+              "carbohydrate_g": 39.0,
+              "sodium_mg": 731.0,
+              "matched": true,
+              "source": "mcd_mcp:list-nutrition-foods",
+              "calcium_mg": 73.0,
+              "fiber_g": null,
+              "serving_size": null,
+              "fetched_at": "2026-10-24 11:49:55",
+              "estimated": false,
+              "metric_sources": {},
+              "data_source": "demo_snapshot"
+            },
+            "food_role": "main",
+            "beverage_status": "none",
+            "non_spicy_servings": 1,
+            "side_servings": 0,
+            "components": [],
+            "selected_options": []
+          },
+          {
+            "code": "6102",
+            "name": "苹果片",
+            "quantity": 1,
+            "unit_price_fen": 700,
+            "original_unit_price_fen": 700,
+            "line_total_fen": 700,
+            "servings": 0,
+            "spicy_level": "mild",
+            "image": "https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_6102_320.png",
+            "spec": null,
+            "nutrition": {
+              "energy_kcal": 32.0,
+              "protein_g": 0.0,
+              "fat_g": 0.0,
+              "carbohydrate_g": 7.0,
+              "sodium_mg": 0.0,
+              "matched": true,
+              "source": "mcd_mcp:list-nutrition-foods",
+              "calcium_mg": 18.0,
+              "fiber_g": null,
+              "serving_size": null,
+              "fetched_at": "2026-10-24 11:49:55",
+              "estimated": false,
+              "metric_sources": {},
+              "data_source": "demo_snapshot"
+            },
+            "food_role": "side",
+            "beverage_status": "none",
+            "non_spicy_servings": 0,
+            "side_servings": 1,
+            "components": [],
+            "selected_options": []
+          },
+          {
+            "code": "9900008747",
+            "name": "牛肉堡单品精选",
+            "quantity": 1,
+            "unit_price_fen": 1400,
+            "original_unit_price_fen": 1400,
+            "line_total_fen": 1400,
+            "servings": 1,
+            "spicy_level": "unknown",
+            "image": "https://menu-img.mcd.cn/pcm/prod/menu/20260309/product/MS_9900008747_320.gif",
+            "spec": null,
+            "nutrition": null,
+            "food_role": "main",
+            "beverage_status": "none",
+            "non_spicy_servings": 0,
+            "side_servings": 0,
+            "components": [],
+            "selected_options": []
+          },
+          {
+            "code": "521952",
+            "name": "龙焰鸡腿堡",
+            "quantity": 1,
+            "unit_price_fen": 1590,
+            "original_unit_price_fen": 2400,
+            "line_total_fen": 1590,
+            "servings": 1,
+            "spicy_level": "spicy",
+            "image": "https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_521952_320.png",
+            "spec": null,
+            "nutrition": null,
+            "food_role": "main",
+            "beverage_status": "none",
+            "non_spicy_servings": 0,
+            "side_servings": 0,
+            "components": [],
+            "selected_options": []
+          }
+        ],
+        "subtotal_fen": 6150,
+        "discount_fen": 810,
+        "total_fen": 5340,
+        "budget_fen": 10000,
+        "remaining_fen": 4660,
+        "servings_total": 3,
+        "non_spicy_servings": 1,
+        "reasons": [
+          "正常饭量按每人 1 份主食、每 2 人至少 1 份小食或额外主食配置",
+          "主食 3 份、小食 1 份；已确认不辣主食 1 份",
+          "价格仅为本次已核实菜单与优惠的有限候选估算，最终报价以 A 核验为准",
+          "搭配多样指商品种类较多，不代表营养均衡"
+        ],
+        "checks": [
+          {
+            "name": "预算",
+            "satisfied": true,
+            "detail": "应付 5340 分 / 预算 10000 分"
+          },
+          {
+            "name": "人数",
+            "satisfied": true,
+            "detail": "主食 3 份 / 需要 2 份"
+          },
+          {
+            "name": "忌口",
+            "satisfied": true,
+            "detail": "已确认不辣 1 份 / 需要 1 份"
+          },
+          {
+            "name": "加餐",
+            "satisfied": true,
+            "detail": "小食及额外主食 2 份 / 需要 1 份"
+          },
+          {
+            "name": "不带饮料",
+            "satisfied": true,
+            "detail": "已核实组合不含饮品"
+          },
+          {
+            "name": "资格",
+            "satisfied": true,
+            "detail": "所用餐品资格均已确认或无需会员资格"
+          }
+        ],
+        "side_servings_total": 1,
+        "membership_comparison": {
+          "status": "unavailable",
+          "reason": "缺少已核实的会员报价与卡费事实",
+          "same_basket": null,
+          "without_card_fen": null,
+          "existing_card_food_fen": null,
+          "new_card_food_fen": null,
+          "new_card_total_fen": null,
+          "card_fee_fen": null,
+          "existing_card_saving_fen": null,
+          "net_saving_fen": null,
+          "price_basis": null,
+          "source": null,
+          "fetched_at": null,
+          "assumptions": [],
+          "habit_estimate": null
+        },
+        "nutrition_summary": {
+          "status": "partial",
+          "totals": {
+            "energy_kcal": 401.0,
+            "protein_g": 15.0,
+            "fat_g": 17.0,
+            "carbohydrate_g": 46.0,
+            "sodium_mg": 731.0,
+            "calcium_mg": 91.0,
+            "fiber_g": null
+          },
+          "coverage": {
+            "energy_kcal": {
+              "known_units": 2,
+              "total_units": 4,
+              "total_units_known": true,
+              "unknown_combo_units": 0,
+              "complete": false
+            },
+            "protein_g": {
+              "known_units": 2,
+              "total_units": 4,
+              "total_units_known": true,
+              "unknown_combo_units": 0,
+              "complete": false
+            },
+            "fat_g": {
+              "known_units": 2,
+              "total_units": 4,
+              "total_units_known": true,
+              "unknown_combo_units": 0,
+              "complete": false
+            },
+            "carbohydrate_g": {
+              "known_units": 2,
+              "total_units": 4,
+              "total_units_known": true,
+              "unknown_combo_units": 0,
+              "complete": false
+            },
+            "sodium_mg": {
+              "known_units": 2,
+              "total_units": 4,
+              "total_units_known": true,
+              "unknown_combo_units": 0,
+              "complete": false
+            },
+            "calcium_mg": {
+              "known_units": 2,
+              "total_units": 4,
+              "total_units_known": true,
+              "unknown_combo_units": 0,
+              "complete": false
+            },
+            "fiber_g": {
+              "known_units": 0,
+              "total_units": 4,
+              "total_units_known": true,
+              "unknown_combo_units": 0,
+              "complete": false
+            }
+          },
+          "total_units_known": true,
+          "unknown_combo_units": 0,
+          "missing_items": [
+            {
+              "code": "9900008747",
+              "name": "牛肉堡单品精选",
+              "quantity": 1,
+              "reason": "缺少匹配的营养资料"
+            },
+            {
+              "code": "521952",
+              "name": "龙焰鸡腿堡",
+              "quantity": 1,
+              "reason": "缺少匹配的营养资料"
+            }
+          ],
+          "missing_metrics": {
+            "energy_kcal": [
+              {
+                "code": "9900008747",
+                "name": "牛肉堡单品精选",
+                "quantity": 1
+              },
+              {
+                "code": "521952",
+                "name": "龙焰鸡腿堡",
+                "quantity": 1
+              }
+            ],
+            "protein_g": [
+              {
+                "code": "9900008747",
+                "name": "牛肉堡单品精选",
+                "quantity": 1
+              },
+              {
+                "code": "521952",
+                "name": "龙焰鸡腿堡",
+                "quantity": 1
+              }
+            ],
+            "fat_g": [
+              {
+                "code": "9900008747",
+                "name": "牛肉堡单品精选",
+                "quantity": 1
+              },
+              {
+                "code": "521952",
+                "name": "龙焰鸡腿堡",
+                "quantity": 1
+              }
+            ],
+            "carbohydrate_g": [
+              {
+                "code": "9900008747",
+                "name": "牛肉堡单品精选",
+                "quantity": 1
+              },
+              {
+                "code": "521952",
+                "name": "龙焰鸡腿堡",
+                "quantity": 1
+              }
+            ],
+            "sodium_mg": [
+              {
+                "code": "9900008747",
+                "name": "牛肉堡单品精选",
+                "quantity": 1
+              },
+              {
+                "code": "521952",
+                "name": "龙焰鸡腿堡",
+                "quantity": 1
+              }
+            ],
+            "calcium_mg": [
+              {
+                "code": "9900008747",
+                "name": "牛肉堡单品精选",
+                "quantity": 1
+              },
+              {
+                "code": "521952",
+                "name": "龙焰鸡腿堡",
+                "quantity": 1
+              }
+            ],
+            "fiber_g": [
+              {
+                "code": "1450",
+                "name": "麦香鸡",
+                "quantity": 1
+              },
+              {
+                "code": "6102",
+                "name": "苹果片",
+                "quantity": 1
+              },
+              {
+                "code": "9900008747",
+                "name": "牛肉堡单品精选",
+                "quantity": 1
+              },
+              {
+                "code": "521952",
+                "name": "龙焰鸡腿堡",
+                "quantity": 1
+              }
+            ]
+          },
+          "sources": [
+            {
+              "code": "1450",
+              "name": "麦香鸡",
+              "quantity": 1,
+              "metric": "energy_kcal",
+              "source": "mcd_mcp:list-nutrition-foods",
+              "data_source": "demo_snapshot",
+              "estimated": false,
+              "serving_size": null,
+              "fetched_at": "2026-10-24 11:49:55"
+            },
+            {
+              "code": "1450",
+              "name": "麦香鸡",
+              "quantity": 1,
+              "metric": "protein_g",
+              "source": "mcd_mcp:list-nutrition-foods",
+              "data_source": "demo_snapshot",
+              "estimated": false,
+              "serving_size": null,
+              "fetched_at": "2026-10-24 11:49:55"
+            },
+            {
+              "code": "1450",
+              "name": "麦香鸡",
+              "quantity": 1,
+              "metric": "fat_g",
+              "source": "mcd_mcp:list-nutrition-foods",
+              "data_source": "demo_snapshot",
+              "estimated": false,
+              "serving_size": null,
+              "fetched_at": "2026-10-24 11:49:55"
+            },
+            {
+              "code": "1450",
+              "name": "麦香鸡",
+              "quantity": 1,
+              "metric": "carbohydrate_g",
+              "source": "mcd_mcp:list-nutrition-foods",
+              "data_source": "demo_snapshot",
+              "estimated": false,
+              "serving_size": null,
+              "fetched_at": "2026-10-24 11:49:55"
+            },
+            {
+              "code": "1450",
+              "name": "麦香鸡",
+              "quantity": 1,
+              "metric": "sodium_mg",
+              "source": "mcd_mcp:list-nutrition-foods",
+              "data_source": "demo_snapshot",
+              "estimated": false,
+              "serving_size": null,
+              "fetched_at": "2026-10-24 11:49:55"
+            },
+            {
+              "code": "1450",
+              "name": "麦香鸡",
+              "quantity": 1,
+              "metric": "calcium_mg",
+              "source": "mcd_mcp:list-nutrition-foods",
+              "data_source": "demo_snapshot",
+              "estimated": false,
+              "serving_size": null,
+              "fetched_at": "2026-10-24 11:49:55"
+            },
+            {
+              "code": "6102",
+              "name": "苹果片",
+              "quantity": 1,
+              "metric": "energy_kcal",
+              "source": "mcd_mcp:list-nutrition-foods",
+              "data_source": "demo_snapshot",
+              "estimated": false,
+              "serving_size": null,
+              "fetched_at": "2026-10-24 11:49:55"
+            },
+            {
+              "code": "6102",
+              "name": "苹果片",
+              "quantity": 1,
+              "metric": "protein_g",
+              "source": "mcd_mcp:list-nutrition-foods",
+              "data_source": "demo_snapshot",
+              "estimated": false,
+              "serving_size": null,
+              "fetched_at": "2026-10-24 11:49:55"
+            },
+            {
+              "code": "6102",
+              "name": "苹果片",
+              "quantity": 1,
+              "metric": "fat_g",
+              "source": "mcd_mcp:list-nutrition-foods",
+              "data_source": "demo_snapshot",
+              "estimated": false,
+              "serving_size": null,
+              "fetched_at": "2026-10-24 11:49:55"
+            },
+            {
+              "code": "6102",
+              "name": "苹果片",
+              "quantity": 1,
+              "metric": "carbohydrate_g",
+              "source": "mcd_mcp:list-nutrition-foods",
+              "data_source": "demo_snapshot",
+              "estimated": false,
+              "serving_size": null,
+              "fetched_at": "2026-10-24 11:49:55"
+            },
+            {
+              "code": "6102",
+              "name": "苹果片",
+              "quantity": 1,
+              "metric": "sodium_mg",
+              "source": "mcd_mcp:list-nutrition-foods",
+              "data_source": "demo_snapshot",
+              "estimated": false,
+              "serving_size": null,
+              "fetched_at": "2026-10-24 11:49:55"
+            },
+            {
+              "code": "6102",
+              "name": "苹果片",
+              "quantity": 1,
+              "metric": "calcium_mg",
+              "source": "mcd_mcp:list-nutrition-foods",
+              "data_source": "demo_snapshot",
+              "estimated": false,
+              "serving_size": null,
+              "fetched_at": "2026-10-24 11:49:55"
+            }
+          ],
+          "suggestions": [],
+          "note": "仅汇总已匹配规格的已知部分；未知指标不按零计算。"
+        },
+        "price_basis": "demo_snapshot",
+        "applied_promotions": []
+      }
+    ],
+    "requirements": {
+      "people": 2,
+      "budget_type": "total",
+      "budget_fen": 10000,
+      "dietary_constraints": [
+        {
+          "kind": "non_spicy",
+          "people": 1
+        }
+      ],
+      "appetite": "normal",
+      "preferred_tags": [],
+      "exclude_beverage": true,
+      "membership_status": "unknown",
+      "meal_frequency_per_month": null,
+      "habit_horizon_months": null,
+      "habitual_tags": []
+    },
+    "total_budget_fen": 10000,
+    "data_source": "demo_snapshot",
+    "fetched_at": "2026-10-24 11:49:55",
+    "degraded_reason": null,
+    "unsatisfiable_reason": null,
+    "suggestions": [
+      "缺少已核实的同篮子报价与会员卡费，开卡比较暂不可计算。"
+    ],
+    "algorithm_source": "skill",
+    "campaigns": []
+  },
+  "msg": "ok"
+}

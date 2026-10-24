@@ -1,4 +1,4 @@
-# 修订说明：从菜单与实际选配重建价格、饮料和餐份事实，供样例与保存前校验共用。
+# 整合说明：重建主食、小食和实际组成，供 B 适配与 A 保存前校验共用。
 """只核实已选餐品，不承担 B 的组合搜索或优惠决策。"""
 
 from __future__ import annotations
@@ -21,6 +21,8 @@ class MealFacts:
     beverage_status: BeverageStatus
     extra_price_fen: int = 0
     selected_options: list[SelectedOptionOut] = field(default_factory=list)
+    side_servings: int = 0
+    components: list[dict] = field(default_factory=list)
 
 
 # 空选配只代表沿用默认；默认轮次或数量不明确时要求 B 显式选配。
@@ -55,6 +57,8 @@ def resolve_meal_facts(
     detail: Optional[ComboDetailOut] = None,
     selected_options: Optional[list[SelectedOptionOut]] = None,
 ) -> tuple[Optional[MealFacts], list[str]]:
+    if not menu_item.available or not menu_item.price_verified:
+        return None, ["商品不可售或价格尚未核实"]
     if menu_item.is_merchandise:
         return None, ["周边或导航项不能计入餐食"]
     if not menu_item.is_combo:
@@ -68,6 +72,7 @@ def resolve_meal_facts(
             non_spicy_servings=servings if menu_item.spicy_level == "mild" else 0,
             spicy_level=menu_item.spicy_level,
             beverage_status=menu_item.beverage_status,
+            side_servings=int(menu_item.food_role == "side"),
         ), []
     if detail is None or detail.code != menu_item.code or not detail.rounds:
         return None, ["缺少匹配的套餐结构，无法核实实际餐份与规格"]
@@ -77,6 +82,12 @@ def resolve_meal_facts(
     if not selected:
         selected, default_problems = default_selection(detail)
         problems.extend(default_problems)
+
+    # 接受旧字典输入，但统一成 A 的 option_code/数量模型后再核实。
+    try:
+        selected = [SelectedOptionOut.model_validate(option) for option in selected]
+    except (ValueError, TypeError):
+        return None, ["套餐选配字段或数量无效"]
 
     rounds = {round_.round_id: round_ for round_ in detail.rounds}
     if len(rounds) != len(detail.rounds) or "" in rounds:
@@ -151,9 +162,22 @@ def resolve_meal_facts(
         beverage = "contains"
     elif resolved and all(option.beverage_status == "none" for option, _ in resolved):
         beverage = "none"
+    components = []
+    for option, quantity in resolved:
+        main = int(option.food_role == "main" and is_staple_main(option.name, ""))
+        role = option.food_role if option.food_role != "main" or main else "unknown"
+        components.append({
+            "code": option.code, "name": option.name, "quantity": quantity,
+            "food_role": role, "beverage_status": option.beverage_status,
+            "servings": main, "servings_verified": bool(main),
+            "non_spicy_servings": main if spicy == "mild" else 0,
+            "side_servings": int(role == "side"),
+        })
     return MealFacts(
         servings=servings, non_spicy_servings=servings if spicy == "mild" else 0,
         spicy_level=spicy, beverage_status=beverage,
         extra_price_fen=extra_price,
         selected_options=canonical,
+        side_servings=sum(c["side_servings"] * c["quantity"] for c in components),
+        components=components,
     ), []

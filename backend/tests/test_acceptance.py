@@ -1,4 +1,4 @@
-# 修订说明：修正随心配无饮料的旧断言，隔离缓存修改，避免验收用例互相污染。
+# 整合说明：按 B 的预算口径追问与正式方案更新断言；本轮不运行。
 """验收场景与边界测试（demo 快照模式，不依赖外部凭据）。
 
 运行（仓库根目录）：
@@ -168,13 +168,11 @@ def test_plans_max_people_boundary(services):
         assert plan.servings_total >= 20
 
 
-def test_non_spicy_people_capped_at_total(services):
-    """忌口人数超过总人数时应收敛到总人数，不能生成超过人数的份数需求。"""
-    req = make_req(6, 15000, non_spicy=10)
-    assert req.non_spicy_people == 6
-    out = run(services[1].create_plans(PlanRequest(store_code=STORE, requirements=req)))
-    for plan in out.plans:
-        assert plan.servings_total >= 6
+def test_non_spicy_people_over_total_requires_correction(services):
+    """V0.5 要求冲突人数追问/拒绝，不可静默截断。"""
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError, match="不辣人数不能超过总人数"):
+        make_req(6, 15000, non_spicy=10)
 
 
 # ------------------------------------------------------------ 方案存取与模拟结算
@@ -261,7 +259,7 @@ def test_plan_expires_after_ttl(services):
 def test_draft_multi_turn_keeps_earlier_fields():
     """先说人数、后说预算时，已收集的信息不能丢。"""
     draft = None
-    for message in ["我们6个人", "预算150元", "其中2个人不吃辣"]:
+    for message in ["我们6个人", "总预算150元", "其中2个人不吃辣"]:
         result = rule_extract(message, draft)
         draft = result["draft"]
     assert draft.people == 6, "忌口句式里的数字不能被当成总人数"
@@ -304,7 +302,7 @@ def test_plans_exclude_beverage(services):
     menu = {i.code: i for i in run(services[0].get_menu(STORE)).items}
     for plan in out.plans:
         checks = {c.name: c.satisfied for c in plan.checks}
-        assert checks["不含饮料"] is True
+        assert checks["不带饮料"] is True
         for item in plan.items:
             # A 的无饮料样例只使用已确认单品；套餐替换由 B 显式选配后再校验。
             assert menu[item.code].beverage_status == "none"
@@ -354,6 +352,10 @@ def test_hard_constraint_unavailable_is_rejected(services):
 
     monkeypatch = pytest.MonkeyPatch()
     monkeypatch.setattr(menu_service, "get_menu", no_main_courses)
+    from backend.services.combo_service import ComboDetailsResult
+    async def no_combo_details(store_code, codes):
+        return ComboDetailsResult(missing_codes=codes)
+    monkeypatch.setattr(plan_service.combos, "get_details", no_combo_details)
     try:
         with pytest.raises(CapabilityUnavailable) as exc:
             run(plan_service.create_plans(PlanRequest(store_code=STORE, requirements=req)))

@@ -1,3 +1,4 @@
+# 整合说明：保留 B 的模型配置；能力由接口统一读取显式声明并核对事实。
 """配置与运行模式。
 
 所有凭据只从环境变量或本地 .env 读取，绝不写入代码或仓库。
@@ -29,6 +30,8 @@ def _load_dotenv(path: Path) -> None:
 
 
 _load_dotenv(BASE_DIR / ".env")
+# 兼容既有 B 本地配置；系统与 backend/.env 的显式设置优先。
+_load_dotenv(BASE_DIR.parent / ".env")
 
 
 class Settings:
@@ -64,6 +67,13 @@ class Settings:
     def describe(self) -> dict:
         """给前端看的安全信息，不含任何凭据。"""
         return {
+            "contract_version": "1.1",
+            "session_scope": "single_demo",
+            "data_limitations": [
+                "套餐只使用可核实的默认选配；缺少结构或差价时排除，暂未搜索任意换配组合。",
+                "同篮子收银报价、卡费资格与活动读取尚未接通，相应能力仍不可用。",
+                "菜单价格为参考估算；演示快照不是实时收银报价。",
+            ],
             "data_mode": self.data_mode,
             "mcp_configured": self.has_mcp_credentials,
             "default_store_code": self.default_store_code,

@@ -1,9 +1,9 @@
-# 修订说明：保存前按菜单和完整选配重算金额与餐份，不信任算法自报汇总。
+# 整合说明：A 独立重算 B 的组成、餐份和金额，已核实优惠另行核对。
 """A 的事实校验边界；不通过的方案直接丢弃并说明原因。"""
 
 from __future__ import annotations
 
-from ..schemas import ComboDetailOut, MenuItemOut, PlanOut, Requirements
+from ..schemas import ComboDetailOut, MenuItemOut, PlanOut, PlanningContext, Requirements
 from .meal_facts import resolve_meal_facts
 
 
@@ -12,12 +12,16 @@ def validate_plan(
     requirements: Requirements,
     menu_map: dict[str, MenuItemOut],
     combo_details: dict[str, ComboDetailOut],
+    *, context: PlanningContext | None = None, strict_details: bool = False,
 ) -> list[str]:
     """返回问题列表；空列表代表通过。"""
     if not plan.items:
         return ["方案没有包含任何商品"]
     problems: list[str] = []
+    if len({item.code for item in plan.items}) != len(plan.items):
+        problems.append("同一商品应合并数量，不能重复列项")
     servings = non_spicy = total = subtotal = 0
+    sides = 0
     for item in plan.items:
         source = menu_map.get(item.code)
         if source is None:
@@ -48,12 +52,41 @@ def validate_plan(
             problems.append(f"{source.name} 餐份自报 {item.servings}，实际主食餐份为 {facts.servings}")
         if item.spicy_level != facts.spicy_level:
             problems.append(f"{source.name} 辣度与实际餐品或选配不符")
+        if strict_details:
+            if (item.food_role != source.food_role
+                    or item.beverage_status != facts.beverage_status
+                    or item.non_spicy_servings != facts.non_spicy_servings
+                    or item.side_servings != facts.side_servings
+                    or item.components != facts.components):
+                problems.append(f"{source.name} 组成、角色或主食/小食餐份与事实不符")
+            if source.is_combo and item.selected_options != facts.selected_options:
+                problems.append(f"{source.name} 选配缺失或与事实不符")
         if requirements.exclude_beverage and facts.beverage_status != "none":
             problems.append(f"{source.name} 实际选配含饮品或含饮料情况未知，不能满足不带饮料")
         servings += facts.servings * item.quantity
         non_spicy += facts.non_spicy_servings * item.quantity
+        sides += facts.side_servings * item.quantity
         total += unit * item.quantity
         subtotal += original_unit * item.quantity
+
+    # 优惠只能使用服务端注入的已核实事实，客户端不能填优惠金额。
+    if context is not None and context.promotions:
+        from ..skill.promotions import apply_promotions
+        total, applied = apply_promotions(
+            {item.code: item.quantity for item in plan.items}, total,
+            context.promotions, context.store_code,
+        )
+        if plan.applied_promotions != applied:
+            problems.append("优惠明细与服务端已核实规则不符")
+    elif plan.applied_promotions:
+        problems.append("本次没有可核实优惠规则，不能自报额外优惠")
+    if strict_details:
+        if plan.side_servings_total != sides:
+            problems.append("总小食餐份与实际组成不符")
+        if context is not None and plan.price_basis != context.price_basis:
+            problems.append("报价依据与本次数据来源不符")
+        if not plan.summary.strip() or not plan.checks or not all(check.satisfied for check in plan.checks):
+            problems.append("方案摘要或约束检查不完整")
 
     # 总额、原价、优惠、预算余额均由相同事实重建，防止伪造折扣或够吃人数。
     for label, actual, expected in (
@@ -81,13 +114,17 @@ def validate_plans(
     requirements: Requirements,
     menu_items: list[MenuItemOut],
     combo_details: dict[str, ComboDetailOut],
+    *, context: PlanningContext | None = None, strict_details: bool = False,
 ) -> tuple[list[PlanOut], list[str]]:
     """返回通过的方案及被丢弃方案的说明。"""
     menu_map = {item.code: item for item in menu_items}
     kept: list[PlanOut] = []
     dropped: list[str] = []
     for plan in plans:
-        problems = validate_plan(plan, requirements, menu_map, combo_details)
+        problems = validate_plan(
+            plan, requirements, menu_map, combo_details,
+            context=context, strict_details=strict_details,
+        )
         if problems:
             dropped.append(f"「{plan.title or plan.type}」未通过校验：" + "；".join(problems))
         else:

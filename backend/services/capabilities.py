@@ -1,4 +1,4 @@
-# 修订说明：能力由 B 显式声明并经 A 数据前提约束，不再从 context 参数推断。
+# 整合说明：B 的声明作为决策依据，门店事实和独立校验决定实际可用性。
 """能力标记（A 职责）。
 
 规则（扩展草案 §二）：某个能力只有在**输入、数据与决策全链路**都支持时才能标 true。
@@ -78,9 +78,9 @@ def static_capabilities(*, skill_module: Optional[Any]) -> dict[str, bool]:
         "combo_details": True,
         # 输入与事实由 A 提供，决策由实际模块显式声明；保存前仍逐项校验。
         "exclude_beverage": decision_exclude_beverage,
-        # 饭量规则属 B，B 未交付前一律 false——字段存在不等于决策生效
+        # 饭量和口味由 B 显式声明；字段或 context 参数本身不能启用能力。
         "appetite_planning": has_skill and declared.get("appetite_planning") is True,
-        # 口味匹配需 B 自建口味词表；现有 tags 是营销标签，不能当作口味
+        # B 已有独立口味词表；MCP 的营销 tags 不参与口味判断。
         "taste_matching": has_skill and declared.get("taste_matching") is True,
         # 开卡对比需 A 提供同篮子真实报价，本版尚未接入
         "membership_comparison": False,

@@ -1,0 +1,49 @@
+{
+  "code": 0,
+  "data": {
+    "requirements": {
+      "people": 2,
+      "budget_type": "total",
+      "budget_fen": 10000,
+      "dietary_constraints": [
+        {
+          "kind": "non_spicy",
+          "people": 1
+        }
+      ],
+      "appetite": "normal",
+      "preferred_tags": [],
+      "exclude_beverage": true,
+      "membership_status": "unknown",
+      "meal_frequency_per_month": null,
+      "habit_horizon_months": null,
+      "habitual_tags": []
+    },
+    "draft": {
+      "people": 2,
+      "budget_type": "total",
+      "budget_fen": 10000,
+      "dietary_constraints": [
+        {
+          "kind": "non_spicy",
+          "people": 1
+        }
+      ],
+      "appetite": "normal",
+      "preferred_tags": [],
+      "exclude_beverage": true,
+      "membership_status": "unknown",
+      "meal_frequency_per_month": null,
+      "habit_horizon_months": null,
+      "habitual_tags": [],
+      "pending_fields": [],
+      "notes": []
+    },
+    "missing_fields": [],
+    "follow_up": null,
+    "ready": true,
+    "parse_source": "demo_template",
+    "notes": []
+  },
+  "msg": "ok"
+}

@@ -1,3 +1,4 @@
+# 整合说明：合并套餐与活动接口，单会话聊天变更撤销旧方案。
 """API 路由与统一错误处理（A 职责）。
 
 响应约定（与方案 5.1 一致）：
@@ -12,14 +13,14 @@ from __future__ import annotations
 import time
 import uuid
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from ..config import settings
 from ..providers import McpError, McpTimeout
-from ..schemas import ChatIn, ChatOut, MenuOut, OrderIn, OrderOut, PlanRequest, PlanResponse, StoreListOut
+from ..schemas import ChatIn, ChatOut, MenuOut, OrderIn, OrderOut, PlanRequest, PlanResponse, Requirements, StoreListOut
 from ..services import (
     PlanExpiredError,
     PlanNotFoundError,
@@ -113,6 +114,8 @@ async def get_menu(store_code: str) -> JSONResponse:
 
 @router.post("/chat")
 async def chat(payload: ChatIn) -> JSONResponse:
+    # config 已声明 single_demo；新输入使旧需求对应的价格失效。
+    plan_service.store.invalidate_all()
     try:
         result: ChatOut = await chat_service.parse(payload)
     except Exception as exc:  # noqa: BLE001
@@ -179,6 +182,27 @@ async def get_combo_details(store_code: str, codes: str | None = None) -> JSONRe
             "degraded_reason": result.degraded_reason,
         }
     )
+
+
+# ---------------------------------------------------------------- 活动发现（只读服务端事实）
+
+
+@router.get("/campaigns")
+async def get_campaigns(store_code: str, preferred_tags: list[str] = Query(default=[])) -> JSONResponse:
+    from ..skill.campaigns import recommend_campaigns
+    try:
+        menu = await menu_service.get_menu(store_code)
+        context = await plan_service.get_context(menu)
+    except (McpError, McpTimeout):
+        return ok({"items": [], "status": "unavailable", "reason": "活动数据暂不可用"})
+    requirements = Requirements(people=1, budget_fen=0, preferred_tags=preferred_tags)
+    items = recommend_campaigns(context.campaigns, requirements, store_code)
+    return ok({
+        "items": items, "status": "available" if context.campaigns else "unavailable",
+        "reason": None if context.campaigns else "尚无已核实的活动读取数据",
+        "data_source": menu.data_source, "fetched_at": menu.fetched_at,
+        "degraded_reason": menu.degraded_reason,
+    })
 
 
 # ---------------------------------------------------------------- 模拟结算
