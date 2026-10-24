@@ -198,7 +198,19 @@ class ChatService:
                     notes=result.get("notes", []),
                 )
             except Exception:  # noqa: BLE001 — LLM 超时/输出不完整时走规则兜底
-                pass
+                rule_result = rule_extract(payload.message, payload.current)
+                # 明示已从 LLM 回退，不伪装成模型实时理解
+                rule_result["notes"] = [
+                    "语义理解服务暂时不可用，已切换到固定句式识别，请尽量用「N个人、预算X元」的表述"
+                ] + rule_result["notes"]
+                return ChatOut(
+                    requirements=rule_result["requirements"],
+                    missing_fields=rule_result["missing_fields"],
+                    follow_up=rule_result["follow_up"],
+                    ready=not rule_result["missing_fields"],
+                    parse_source=rule_result["parse_source"],
+                    notes=rule_result["notes"],
+                )
 
         result = rule_extract(payload.message, payload.current)
         return ChatOut(

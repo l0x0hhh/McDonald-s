@@ -130,6 +130,9 @@ class PlanItemOut(BaseModel):
     servings: int
     spicy_level: SpicyLevel
     image: Optional[str] = None
+    # 必要规格：套餐内的主食/小食/饮料选择等。由 B 的算法在拆套餐时填写，
+    # 当前样例阶段为空，前端必须容忍 None 而不是显示占位文字。
+    spec: Optional[str] = None
     nutrition: Optional[NutritionOut] = None
 
 
@@ -146,6 +149,9 @@ class PlanOut(BaseModel):
     summary: str
     items: list[PlanItemOut]
     subtotal_fen: int
+    # 优惠金额 = subtotal_fen - total_fen。逐项明细体现在每个商品的
+    # original_unit_price_fen 与 unit_price_fen 差额上，不在此处另造规则。
+    discount_fen: int = 0
     total_fen: int
     budget_fen: int
     remaining_fen: int

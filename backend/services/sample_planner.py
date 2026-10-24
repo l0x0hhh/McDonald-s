@@ -126,6 +126,7 @@ def _build_plan(
         summary="",
         items=items,
         subtotal_fen=subtotal,
+        discount_fen=subtotal - total,
         total_fen=total,
         budget_fen=requirements.total_budget_fen,
         remaining_fen=requirements.total_budget_fen - total,

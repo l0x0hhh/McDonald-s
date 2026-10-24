@@ -23,15 +23,19 @@ import inspect
 from typing import Any, Optional
 
 from ..schemas import MenuItemOut, NutritionOut, PlanOut, PlanRequest, PlanResponse, Requirements
-from .menu_service import menu_service
-from .nutrition_service import nutrition_service
 from .plan_store import PlanStore
 from .sample_planner import generate_sample_plans
 
 
 class PlanService:
-    def __init__(self) -> None:
-        self.store = PlanStore()
+    def __init__(self, menus=None, nutrition=None, store=None) -> None:
+        # 依赖可注入：默认用全局单例，测试时可替换为独立实例便于模拟超时/降级
+        from .menu_service import menu_service as _menu_service
+        from .nutrition_service import nutrition_service as _nutrition_service
+
+        self.menus = menus or _menu_service
+        self.nutrition = nutrition or _nutrition_service
+        self.store = store or PlanStore()
         self._skill_module: Any = None
         self._skill_checked = False
 
@@ -64,8 +68,20 @@ class PlanService:
     # ------------------------------------------------------------ 主流程
 
     async def create_plans(self, request: PlanRequest) -> PlanResponse:
-        menu = await menu_service.get_menu(request.store_code)
-        nutrition = await nutrition_service.get_nutrition_map()
+        from ..providers import McpError, McpTimeout
+
+        try:
+            menu = await self.menus.get_menu(request.store_code)
+        except (McpError, McpTimeout):
+            # 文档 §7：上游失败时旧方案一律失效，防止用旧价格结算
+            self.store.invalidate_all()
+            raise
+
+        # auto 模式降级到快照后，旧方案的价格可能已不代表当前数据源，同样失效
+        if menu.degraded_reason:
+            self.store.invalidate_all()
+
+        nutrition = await self.nutrition.get_nutrition_map()
 
         skill_result: Optional[tuple[list[PlanOut], Optional[str]]] = None
         skill_error: Optional[str] = None

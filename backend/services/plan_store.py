@@ -115,3 +115,11 @@ class PlanStore:
         if removed:
             self._flush()
         return removed
+
+    def invalidate_all(self) -> int:
+        """清空全部方案。用于上游超时或数据降级后，防止用旧价格结算。"""
+        count = len(self._records)
+        if count:
+            self._records.clear()
+            self._flush()
+        return count

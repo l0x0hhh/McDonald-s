@@ -109,8 +109,13 @@ def map_menu(store_code: str, raw_menu: Any) -> tuple[list[MenuItemOut], list[st
             original_fen = parse_price_fen(detail.get("originalPrice")) or price_fen
 
             discount_type = detail.get("discountType")
-            # 「随单购」类优惠必须同单买卡才成立，按原价口径处理并显式标注
-            requires_membership = bool(discount_type) and "随单购" in str(discount_type)
+            # 「随单购/麦金卡/早餐卡」类优惠都需要会员资格才成立（实测快照只出现
+            # 随单购麦金卡优惠，但 MCP 枚举还有 麦金卡优惠/早餐卡优惠/随单购早餐卡优惠），
+            # 一律按原价口径处理并显式标注，防止低价被直接求和
+            discount_text = str(discount_type) if discount_type else ""
+            requires_membership = any(
+                kw in discount_text for kw in ("随单购", "麦金卡", "早餐卡")
+            )
             membership_note = None
             if requires_membership:
                 membership_note = (
