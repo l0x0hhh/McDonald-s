@@ -19,6 +19,8 @@ from ..config import DATA_DIR
 from ..schemas import PlanOut, Requirements
 
 PLAN_TTL_SECONDS = 30 * 60
+# 配餐硬约束变更时递增；旧方案须重新生成，不能跨策略版本继续结算。
+PLAN_POLICY_VERSION = 3
 _STORE_PATH = DATA_DIR / "plans.json"
 
 
@@ -57,6 +59,8 @@ class PlanStore:
             return
         for plan_id, rec in raw.items():
             try:
+                if rec.get("policy_version") != PLAN_POLICY_VERSION:
+                    continue
                 self._records[plan_id] = _PlanRecord(
                     plan=PlanOut.model_validate(rec["plan"]),
                     store_code=rec["store_code"],
@@ -70,6 +74,7 @@ class PlanStore:
         self._path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
             plan_id: {
+                "policy_version": PLAN_POLICY_VERSION,
                 "plan": rec.plan.model_dump(),
                 "store_code": rec.store_code,
                 "requirements": rec.requirements.model_dump(),

@@ -1,11 +1,8 @@
 # 整合说明：按 B 的预算口径追问与正式方案更新断言；本轮不运行。
-"""验收场景与边界测试（demo 快照模式，不依赖外部凭据）。
+"""Acceptance scenarios using explicitly injected online-provider/model fixtures.
 
-运行（仓库根目录）：
-    DATA_MODE=demo ./.venv/Scripts/python.exe -m pytest backend/tests -v   # Windows git bash
-
-测试数据来自真实 MCP 采集的快照 backend/data/snapshot_1400011.json。
-这些测试验证的是接口与约束行为，不是「算法最优性」（那是 B 的正式算法的验收范围）。
+No production snapshot fallback, real credentials, network calls, or real order
+creation occur in these tests. Menu fixture facts are historical test input.
 """
 
 from __future__ import annotations
@@ -29,15 +26,10 @@ from backend.services.plan_service import PlanService  # noqa: E402
 STORE = "1400011"
 
 
-@pytest.fixture(scope="module")
-def services(tmp_path_factory):
-    from backend.services.plan_store import PlanStore
-
-    menu_service = MenuService()
-    store_path = tmp_path_factory.mktemp("plans") / "plans.json"
-    plan_service = PlanService(menus=menu_service, store=PlanStore(store_path))
-    yield menu_service, plan_service
-    asyncio.run(menu_service.aclose())
+@pytest.fixture
+def services(tmp_path):
+    from backend.tests.online_fakes import make_services
+    return make_services(tmp_path)
 
 
 def run(coro):
@@ -59,9 +51,9 @@ def make_req(people, budget_fen, budget_type="total", non_spicy=0):
 # ------------------------------------------------------------ 门店与菜单
 
 
-def test_stores_demo_source(services):
+def test_stores_injected_online_source(services):
     out = run(services[0].get_stores())
-    assert out.data_source == "demo_snapshot"
+    assert out.data_source == "live_mcp"
     assert len(out.stores) > 0
     assert out.stores[0].store_code
     assert out.fetched_at
@@ -69,7 +61,7 @@ def test_stores_demo_source(services):
 
 def test_menu_items_have_spicy_and_membership_flags(services):
     menu = run(services[0].get_menu(STORE))
-    assert menu.data_source == "demo_snapshot"
+    assert menu.data_source == "live_mcp"
     assert len(menu.items) >= 50
     membership = [i for i in menu.items if i.requires_membership]
     assert len(membership) > 0
@@ -115,7 +107,7 @@ def test_plans_competition_scenario(services):
     """赛事原题：6 人 / 150 元 / 2 人不吃辣。"""
     req = make_req(6, 15000, non_spicy=2)
     out = run(services[1].create_plans(PlanRequest(store_code=STORE, requirements=req)))
-    assert out.data_source == "demo_snapshot"
+    assert out.data_source == "live_mcp"
     assert out.unsatisfiable_reason is None
     assert len(out.plans) >= 1
     for plan in out.plans:
@@ -189,7 +181,7 @@ def test_store_switch_invalidates_old_plans(services):
         plan_service.store.get(old_id)
 
 
-def test_order_rebuilds_amount_from_stored_plan(services):
+def test_quote_amount_is_saved_with_server_basket(services):
     plan_service = services[1]
     req = make_req(2, 10000)
     out = run(plan_service.create_plans(PlanRequest(store_code=STORE, requirements=req)))
@@ -223,7 +215,7 @@ def test_upstream_timeout_invalidates_old_plans(services, monkeypatch):
 
 
 def test_degraded_snapshot_invalidates_old_plans(services, monkeypatch):
-    """auto 模式降级到快照后，旧方案价格不再可信，必须失效。"""
+    """返回快照来源时必须拒绝，且此前方案失效。"""
     menu_service, plan_service = services
     req = make_req(2, 10000)
     out = run(plan_service.create_plans(PlanRequest(store_code=STORE, requirements=req)))
@@ -233,11 +225,14 @@ def test_degraded_snapshot_invalidates_old_plans(services, monkeypatch):
 
     async def degraded(store_code):
         menu = await original(store_code)
-        menu.degraded_reason = "模拟降级"
+        menu = menu.model_copy(deep=True)
+        menu.data_source = "demo_snapshot"
         return menu
 
     monkeypatch.setattr(menu_service, "get_menu", degraded)
-    run(plan_service.create_plans(PlanRequest(store_code=STORE, requirements=req)))
+    from backend.providers import McpError
+    with pytest.raises(McpError):
+        run(plan_service.create_plans(PlanRequest(store_code=STORE, requirements=req)))
     with pytest.raises(Exception):
         plan_service.store.get(old_id)
 
@@ -316,7 +311,7 @@ def test_mixed_round_names_do_not_prove_beverage_free(services):
     from backend.services.combo_service import ComboService
 
     menu = run(services[0].get_menu(STORE))
-    combos = ComboService()
+    combos = ComboService(mcp=services[0]._mcp)
     codes = [i.code for i in menu.items if i.is_combo and not i.is_merchandise]
     details = run(combos.get_details(STORE, codes)).details
     for code in ("9900013304", "9900015568"):
@@ -333,7 +328,7 @@ def test_mixed_round_names_do_not_prove_beverage_free(services):
 
 def test_hard_constraint_unavailable_is_rejected(services):
     """取不到套餐结构、也没有可确认的主食单品时，必须明确拒绝而不是硬凑。"""
-    from backend.services.capabilities import CapabilityUnavailable
+    from backend.services.llm_planner import PlanningError
 
     menu_service, plan_service = services
     req = Requirements(people=4, budget_type="total", budget_fen=15000, exclude_beverage=True)
@@ -357,9 +352,9 @@ def test_hard_constraint_unavailable_is_rejected(services):
         return ComboDetailsResult(missing_codes=codes)
     monkeypatch.setattr(plan_service.combos, "get_details", no_combo_details)
     try:
-        with pytest.raises(CapabilityUnavailable) as exc:
-            run(plan_service.create_plans(PlanRequest(store_code=STORE, requirements=req)))
-        assert exc.value.capability == "exclude_beverage"
+        out = run(plan_service.create_plans(PlanRequest(store_code=STORE, requirements=req)))
+        assert out.plans == [] and out.unsatisfiable_reason
+        assert not plan_service.store._records
     finally:
         monkeypatch.undo()
 
@@ -371,7 +366,7 @@ def test_combo_details_beverage_round_is_mandatory(services):
     """实测：套餐的饮料轮 minQuantity=1，因此去不掉。"""
     from backend.services.combo_service import ComboService
 
-    combos = ComboService()
+    combos = ComboService(mcp=services[0]._mcp)
     detail = run(combos.get_details(STORE, ["9900015602"])).details.get("9900015602")
     assert detail is not None, "演示快照应含套餐结构"
     beverage_rounds = [r for r in detail.rounds if r.is_beverage_round]
@@ -386,11 +381,11 @@ def test_combo_details_beverage_round_is_mandatory(services):
 
 
 def test_capabilities_reflect_full_chain(services):
-    from backend.services.capabilities import static_capabilities
+    from backend.services.capabilities import planner_capabilities
 
-    caps = static_capabilities(skill_module=None)
-    assert caps["chat_draft"] is True
-    assert caps["exclude_beverage"] is True  # 无 B 模块时走 A 的样例
+    caps = planner_capabilities(ready=False)
+    assert caps["chat_draft"] is False
+    assert caps["exclude_beverage"] is False
     # 字段存在不等于决策生效
     assert caps["appetite_planning"] is False
     assert caps["taste_matching"] is False
@@ -443,7 +438,7 @@ def test_stores_cache_is_keyed_by_city_and_keyword(services):
     menu_service = services[0]
     first = run(menu_service.get_stores("广州", "天河区体育西路"))
     second = run(menu_service.get_stores("深圳", "福田区"))
-    # 演示快照只有一家门店，但两次请求的缓存键必须不同，不能复用同一个条目
+    # 注入夹具只有一家门店，但城市与关键词仍必须分区缓存
     keys = set(menu_service._stores_cache)  # noqa: SLF001
     assert len(keys) == 2
     assert first.fetched_at and second.fetched_at

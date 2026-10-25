@@ -89,7 +89,7 @@
   position: absolute;
   right: 5%;
   bottom: 27%;
-  color: #deb03a;
+  color:#755b43;
   animation: kitchen-glint 6.4s ease-in-out infinite;
   pointer-events: none;
 }
@@ -110,7 +110,7 @@
   flex-wrap: wrap;
   gap: 8px;
 }
-.hero-status .art-caption { position: static; font-size: 10px; padding: 8px 12px; }
+.hero-status .art-caption { position: static; font-size:14px; padding: 8px 12px; }
 .idle-toggle {
   display: inline-flex;
   align-items: center;
@@ -121,8 +121,8 @@
   border: 1px solid #e1c994;
   border-radius: 18px;
   background: #fffaeced;
-  color: #937345;
-  font-size: 9px;
+  color:#755b43;
+  font-size:14px;
 }
 .idle-toggle:hover { background: #fff0c5; }
 .idle-toggle:disabled { opacity: .5; }
@@ -151,8 +151,8 @@
 @media (max-width: 720px) {
   .hero-visual { width: min(100%, 430px); }
   .hero-status { bottom: 5px; gap: 6px; }
-  .hero-status .art-caption { padding: 6px 9px; font-size: 9px; }
-  .idle-toggle { min-height: 32px; padding-inline: 7px; font-size: 8px; }
+  .hero-status .art-caption { padding: 6px 9px; font-size:14px; }
+  .idle-toggle { min-height: 32px; padding-inline: 7px; font-size:14px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .hero-entry,

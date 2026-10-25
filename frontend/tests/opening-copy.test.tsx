@@ -1,3 +1,5 @@
+import { installOnlineApi } from './helpers/online-api'
+installOnlineApi()
 import { StrictMode, useRef } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -26,6 +28,48 @@ function copy(onClick = vi.fn()) {
 }
 
 describe('opening-day copy choreography', () => {
+  it('uses direct ordering copy without food, budget or store-status guarantees', () => {
+    render(<App />)
+    expect(screen.getByText('按人数和预算，搭配这一餐')).toBeInTheDocument()
+    expect(document.querySelector('.hero-description')).toHaveTextContent('选一家店，填好人数、预算和忌口。看看有哪些搭配，再到官方页面付款。')
+    expect(document.querySelector('.hero-promises')).toHaveTextContent('按预算选餐列清商品份数说明忌口')
+    expect(document.querySelector('.open-sign')).toHaveTextContent('开饭准备中')
+    expect(document.querySelector('.open-sign')).not.toHaveTextContent('营业中')
+    expect(document.querySelector('.art-caption')).toHaveTextContent('选好搭配，再去付款')
+    expect(screen.getByText('选好门店，再填人数和预算')).toBeInTheDocument()
+    expect(screen.getByLabelText(/这顿想怎么吃/)).toBeInTheDocument()
+    expect(screen.getByRole('heading',{name:'先填人数和预算'})).toBeInTheDocument()
+    expect(screen.getByText('选好门店，看看有哪些搭配。')).toBeInTheDocument()
+    expect(document.querySelector('.empty-options')).toHaveTextContent('人数预算忌口')
+    expect(screen.getByText('配餐方案与官方报价')).toBeInTheDocument()
+    expect(screen.queryByText(/大家吃得够|预算不超标|把好吃留给你|精打细算派/)).not.toBeInTheDocument()
+    expect(screen.getByRole('heading',{name:/今天.*开饭/})).toBeInTheDocument()
+    expect(screen.getByRole('heading',{name:'点餐小纸条'})).toBeInTheDocument()
+    expect(screen.getByRole('heading',{name:'小厨房出餐台'})).toBeInTheDocument()
+  })
+
+  it('names ordering tasks and nutrition features without marketing or implementation narration', () => {
+    render(<App />)
+    expect(screen.getByRole('heading', { name: '这顿怎么点' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '我的订单' })).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: '使用说明' })).toHaveLength(2)
+    expect(screen.getByText('填写点餐需求')).toBeInTheDocument()
+    expect(screen.getByText('选择配餐方案')).toBeInTheDocument()
+    expect(screen.getByText('确认订单并付款')).toBeInTheDocument()
+    expect(screen.getByText('价格明细')).toBeInTheDocument()
+    expect(screen.getByText('查看总价、人均和预算剩余')).toBeInTheDocument()
+    expect(screen.getByText('营养信息')).toBeInTheDocument()
+    expect(screen.getByText('查看热量与营养成分')).toBeInTheDocument()
+    expect(screen.queryByText('有数据就展示，未知的不会当作零。')).not.toBeInTheDocument()
+    expect(screen.queryByText('每一分钱，都有来处')).not.toBeInTheDocument()
+  })
+
+  it('opens help using the same plain-language label as the navigation', () => {
+    render(<App />)
+    fireEvent.click(screen.getAllByRole('button', { name: '使用说明' })[0])
+    expect(screen.getByRole('dialog', { name: '怎么点餐' })).toBeInTheDocument()
+  })
+
   it('keeps the ordering action live inside an independently choreographed copy rail', () => {
     const scroll = vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(() => {})
     render(<App />)

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from ..schemas import ComboDetailOut, MenuItemOut, PlanOut, PlanningContext, Requirements
+from ..meal_policy import confirmed_mild, extra_portions, portion_targets
 from .meal_facts import resolve_meal_facts
 
 
@@ -63,6 +64,8 @@ def validate_plan(
                 problems.append(f"{source.name} 选配缺失或与事实不符")
         if requirements.exclude_beverage and facts.beverage_status != "none":
             problems.append(f"{source.name} 实际选配含饮品或含饮料情况未知，不能满足不带饮料")
+        if requirements.non_spicy_people == requirements.people and not confirmed_mild(facts.spicy_level, facts.components):
+            problems.append(f"{source.name} 含辣味或未知辣度餐品/选配，不满足全员不辣")
         servings += facts.servings * item.quantity
         non_spicy += facts.non_spicy_servings * item.quantity
         sides += facts.side_servings * item.quantity
@@ -81,6 +84,11 @@ def validate_plan(
     elif plan.applied_promotions:
         problems.append("本次没有可核实优惠规则，不能自报额外优惠")
     if strict_details:
+        main_target, safe_target, extra_target, _ = portion_targets(requirements)
+        if servings < main_target or non_spicy < safe_target:
+            problems.append("实际主食或不辣主食份数不足本次饭量要求")
+        if extra_portions(servings, sides, main_target) < extra_target:
+            problems.append("正餐加餐不足；甜品不计小食份数")
         if plan.side_servings_total != sides:
             problems.append("总小食餐份与实际组成不符")
         if context is not None and plan.price_basis != context.price_basis:

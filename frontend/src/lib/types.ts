@@ -1,7 +1,6 @@
 /** API contract mirrors backend/schemas.py. All monetary fields are integer fen. */
-export type Mode = 'demo' | 'api';
 export type DataSource = 'live_mcp' | 'demo_snapshot';
-export type PlanType = 'cheapest' | 'balanced' | 'taste';
+export type PlanType = 'recommended' | 'alternative' | 'cheapest' | 'balanced' | 'taste';
 export type SpicyLevel = 'spicy' | 'mild' | 'unknown';
 
 export interface DietaryConstraint {
@@ -72,6 +71,7 @@ export interface PlanItem {
   image?: string | null;
   spec?: string | null;
   nutrition?: Nutrition | null;
+  line_price_basis?: 'menu_reference' | 'live_quote';
 }
 
 export interface ConstraintCheck {
@@ -82,6 +82,11 @@ export interface ConstraintCheck {
 
 export interface Plan {
   plan_id: string;
+  quote_id?: string | null;
+  quoted_at?: string | null;
+  price_basis?: 'live_quote' | 'menu_reference';
+  take_way_options?: { code: string; title: string; subtitle?: string }[];
+  quote_breakdown?: Record<string, number | null>;
   type: PlanType;
   title: string;
   summary: string;
@@ -104,8 +109,10 @@ export interface PlanResponse extends SourceMetadata {
   total_budget_fen: number;
   unsatisfiable_reason?: string | null;
   suggestions: string[];
-  algorithm_source?: 'skill' | 'demo_sample' | 'unavailable';
+  algorithm_source?: 'llm_skill' | 'skill' | 'demo_sample' | 'unavailable';
   capabilities?: Record<string, boolean>;
+  skill_version?: string;
+  skill_hash?: string;
 }
 
 export interface ChatResponse {
@@ -120,26 +127,50 @@ export interface ChatResponse {
   notes: string[];
 }
 
+export interface OrderRequest {
+  plan_id: string;
+  quote_id: string;
+  take_way_code: string;
+  idempotency_key: string;
+}
+
 export interface OrderResponse {
   order_id: string;
   plan_id: string;
   store_code: string;
   items: PlanItem[];
   total_fen: number;
-  status: 'simulated';
-  is_demo: true;
-  notice: string;
+  status: 'pending_payment' | 'paid' | 'preparing' | 'delivering' | 'completed' | 'cancelled' | 'unknown';
+  payment_url?: string | null;
+  expires_at?: string | null;
   created_at: string;
 }
 
 export interface Config {
   data_mode: 'live' | 'auto' | 'demo' | string;
   mcp_configured: boolean;
+  llm_configured?: boolean;
+  planner_ready?: boolean;
+  ordering_available?: boolean;
   default_store_code: string;
   default_city: string;
   default_store_keyword?: string;
   order_type: number;
   be_type: number;
+}
+
+/** The server exposes status only; existing credentials never return to the browser. */
+export interface AccessSettings {
+  provider: 'deepseek';
+  model: 'deepseek-flash';
+  deepseek_configured: boolean;
+  mcd_mcp_configured: boolean;
+}
+
+export interface UpdateAccessSettings {
+  /** An omitted or empty field preserves the existing server-side value. */
+  deepseek_api_key?: string;
+  mcd_mcp_key?: string;
 }
 
 export interface ApiEnvelope<T> {

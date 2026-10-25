@@ -26,7 +26,7 @@ describe('two-chef kitchen hero', () => {
   it('keeps the working pause control outside the animated illustration', () => {
     const { container } = render(<HeroScene paused={false} />)
     const visual = container.querySelector('.hero-visual')!
-    const pause = screen.getByRole('button', { name: '暂停氛围动效' })
+    const pause = screen.getByRole('button', { name: '暂停动效' })
 
     expect(visual).toContainElement(screen.getByRole('img'))
     expect(visual.querySelector('button, input, textarea, a, select')).toBeNull()

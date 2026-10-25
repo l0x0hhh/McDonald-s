@@ -1,9 +1,9 @@
 {
   "store_code": "1400011",
-  "fetched_at": "2026-10-24 15:13:56",
+  "fetched_at": "2026-10-25 11:09:44",
   "source": "live_mcp",
   "trace_ids": {
-    "query-meals": "62d928e67c3e40051b3dc2292a6bd92b",
+    "query-meals": "4a04adcfa02e6d778ea271bc59f8fb2e",
     "query-nearby-stores": "040e8eca722a1304dfa3fff59f28eaa2",
     "list-nutrition-foods": "4418f6c2653d55485b241ea8ddeb778a",
     "query-meal-detail": "47 份套餐结构"
@@ -161,12 +161,6 @@
             "code": "521952",
             "tags": [
               "韩式辣椒黄油风味"
-            ]
-          },
-          {
-            "code": "9900016566",
-            "tags": [
-              "限时特惠"
             ]
           },
           {
@@ -353,12 +347,6 @@
             ]
           },
           {
-            "code": "9900003537",
-            "tags": [
-              "套餐"
-            ]
-          },
-          {
             "code": "1440",
             "tags": [
               "单品",
@@ -392,13 +380,6 @@
       {
         "name": "蘸酱炸鸡",
         "meals": [
-          {
-            "code": "9900016078",
-            "tags": [
-              "蘸酱炸鸡",
-              "韩式芝士风味酱上新"
-            ]
-          },
           {
             "code": "9900016096",
             "tags": [
@@ -448,6 +429,17 @@
         ]
       },
       {
+        "name": "大堡口福\n单人餐",
+        "meals": [
+          {
+            "code": "9900015602",
+            "tags": [
+              "大口吃肉好快乐"
+            ]
+          }
+        ]
+      },
+      {
         "name": "巨无霸\n牛鱼肉堡",
         "meals": [
           {
@@ -475,12 +467,6 @@
             ]
           },
           {
-            "code": "9900000893",
-            "tags": [
-              "麦金卡"
-            ]
-          },
-          {
             "code": "9900005411",
             "tags": [
               "套餐",
@@ -499,20 +485,6 @@
             "tags": [
               "套餐",
               "100%纯牛肉"
-            ]
-          },
-          {
-            "code": "9900005413",
-            "tags": [
-              "套餐",
-              "麦香鱼系列"
-            ]
-          },
-          {
-            "code": "9900005460",
-            "tags": [
-              "套餐",
-              "麦香鱼系列"
             ]
           },
           {
@@ -550,20 +522,6 @@
             "tags": [
               "单品",
               "100%纯牛肉"
-            ]
-          },
-          {
-            "code": "9900003586",
-            "tags": [
-              "单品",
-              "麦香鱼系列"
-            ]
-          },
-          {
-            "code": "1600",
-            "tags": [
-              "单品",
-              "麦香鱼系列"
             ]
           },
           {
@@ -715,23 +673,6 @@
             "tags": [
               "单品"
             ]
-          },
-          {
-            "code": "9900005432",
-            "tags": [
-              "单品"
-            ]
-          }
-        ]
-      },
-      {
-        "name": "大堡口福\n单人餐",
-        "meals": [
-          {
-            "code": "9900015602",
-            "tags": [
-              "大口吃肉好快乐"
-            ]
           }
         ]
       },
@@ -768,13 +709,6 @@
             "code": "521954",
             "tags": [
               "上新"
-            ]
-          },
-          {
-            "code": "9900016566",
-            "tags": [
-              "上新",
-              "限时特惠"
             ]
           },
           {
@@ -989,15 +923,6 @@
             ]
           },
           {
-            "code": "9900011121",
-            "tags": [
-              "粉丝之选"
-            ]
-          },
-          {
-            "code": "9900011126"
-          },
-          {
             "code": "9900011123"
           },
           {
@@ -1044,12 +969,6 @@
           },
           {
             "code": "6362",
-            "tags": [
-              "冷饮"
-            ]
-          },
-          {
-            "code": "9900003538",
             "tags": [
               "冷饮"
             ]
@@ -1111,13 +1030,6 @@
         },
         "canWithOrder": true
       },
-      "9900016078": {
-        "name": "蘸酱麦麦脆汁鸡",
-        "image": "https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_9900016078_320.png",
-        "currentPrice": "11.9",
-        "originalPrice": "18",
-        "canWithOrder": false
-      },
       "9900016077": {
         "name": "蘸酱炸鸡",
         "image": "https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_9900016077_320.gif",
@@ -1137,13 +1049,6 @@
         "image": "https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_9900016073_320.png",
         "currentPrice": "26.9",
         "originalPrice": "48.5",
-        "canWithOrder": false
-      },
-      "9900005460": {
-        "name": "麦香鱼套餐",
-        "image": "https://menu-img.mcd.cn/pcm/prod/menu/20260824/product/MS_G504968_320.png",
-        "currentPrice": "33",
-        "originalPrice": "46.5",
         "canWithOrder": false
       },
       "9900005462": {
@@ -1441,13 +1346,6 @@
         "originalPrice": "23.5",
         "canWithOrder": false
       },
-      "9900005413": {
-        "name": "双层深海鳕鱼堡三件套",
-        "image": "https://menu-img.mcd.cn/pcm/prod/menu/20260824/product/MS_9900005413_320.png",
-        "currentPrice": "35",
-        "originalPrice": "48.5",
-        "canWithOrder": false
-      },
       "514851": {
         "name": "咖啡阿芙佳朵",
         "image": "https://menu-img.mcd.cn/pcm/prod/menu/20250324/product/MS_514851_320.png",
@@ -1470,7 +1368,7 @@
       "9900015730": {
         "name": "BFF四宫格小食盘",
         "image": "https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_9900015730_320.gif",
-        "currentPrice": "40.3",
+        "currentPrice": "39.3",
         "originalPrice": "53.5",
         "canWithOrder": false
       },
@@ -1510,13 +1408,6 @@
         "originalPrice": "26.5",
         "canWithOrder": false
       },
-      "9900003586": {
-        "name": "双层深海鳕鱼堡",
-        "image": "https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_9900003586_320.png",
-        "currentPrice": "24",
-        "originalPrice": "24",
-        "canWithOrder": false
-      },
       "9900000890": {
         "name": "板烧鸡腿堡四件套",
         "image": "https://menu-img.mcd.cn/pcm/prod/menu/20260824/product/MS_9900000890_320.png",
@@ -1532,7 +1423,7 @@
       "9900015729": {
         "name": "蘸酱BFF四宫格小食盘",
         "image": "https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_9900015729_320.gif",
-        "currentPrice": "43.3",
+        "currentPrice": "42.3",
         "originalPrice": "56.5",
         "canWithOrder": false
       },
@@ -1562,13 +1453,6 @@
         "image": "https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_G521951_320.gif",
         "currentPrice": "5",
         "originalPrice": "5",
-        "canWithOrder": false
-      },
-      "9900011126": {
-        "name": "酥脆无双套餐",
-        "image": "https://menu-img.mcd.cn/pcm/prod/menu/20260701/product/MS_9900011126_320.png",
-        "currentPrice": "20",
-        "originalPrice": "20",
         "canWithOrder": false
       },
       "521952": {
@@ -1618,13 +1502,6 @@
           "specId": "880"
         },
         "canWithOrder": true
-      },
-      "9900011121": {
-        "name": "“苹”水相“鱼”套餐",
-        "image": "https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_9900011121_320.png",
-        "currentPrice": "36",
-        "originalPrice": "52.5",
-        "canWithOrder": false
       },
       "9900015568": {
         "name": "精选超值随心配",
@@ -1792,14 +1669,6 @@
         "originalPrice": "22.5",
         "canWithOrder": false
       },
-      "9900016566": {
-        "name": "心形薯饼8块",
-        "image": "https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_9900016566_320.png",
-        "currentPrice": "9.9",
-        "originalPrice": "24",
-        "discountType": "促销优惠",
-        "canWithOrder": false
-      },
       "9900016056": {
         "name": "麦乐鸡开心乐园餐",
         "image": "https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_9900016056_320.png",
@@ -1848,18 +1717,6 @@
         "currentPrice": "21",
         "originalPrice": "21",
         "canWithOrder": false
-      },
-      "9900000893": {
-        "name": "双层深海鳕鱼堡四件套",
-        "image": "https://menu-img.mcd.cn/pcm/prod/menu/20260824/product/MS_9900000893_320.png",
-        "currentPrice": "32",
-        "originalPrice": "58.5",
-        "discountType": "随单购麦金卡优惠",
-        "withOrder": {
-          "membershipCode": "106",
-          "specId": "880"
-        },
-        "canWithOrder": true
       },
       "515955": {
         "name": "浓浓燕麦黑巧（冰/热）",
@@ -1957,33 +1814,12 @@
         "originalPrice": "10.5",
         "canWithOrder": false
       },
-      "1600": {
-        "name": "麦香鱼",
-        "image": "https://menu-img.mcd.cn/pcm/prod/menu/20260101/product/MS_1600_320.png",
-        "currentPrice": "22",
-        "originalPrice": "22",
-        "canWithOrder": false
-      },
       "507411": {
         "name": "麦咖啡™美式",
         "image": "https://menu-img.mcd.cn/pcm/prod/menu/20260422/product/MS_G507374_320.gif",
         "currentPrice": "11.9",
         "originalPrice": "19",
         "discountType": "促销优惠",
-        "canWithOrder": false
-      },
-      "9900003538": {
-        "name": "学生专享饮品随心选",
-        "image": "https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_9900003538_320.gif",
-        "currentPrice": "10",
-        "originalPrice": "10",
-        "canWithOrder": false
-      },
-      "9900003537": {
-        "name": "学生专享汉堡小食随心选",
-        "image": "https://menu-img.mcd.cn/pcm/prod/menu/20250420/product/MS_9900003537_320_0_1744785048324.gif",
-        "currentPrice": "28",
-        "originalPrice": "28",
         "canWithOrder": false
       },
       "515949": {
@@ -2013,13 +1849,6 @@
         "currentPrice": "13.9",
         "originalPrice": "21",
         "discountType": "促销优惠",
-        "canWithOrder": false
-      },
-      "9900005432": {
-        "name": "麦麦脆汁鸡1块",
-        "image": "https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_9900005432_320.png",
-        "currentPrice": "15",
-        "originalPrice": "15",
         "canWithOrder": false
       }
     }

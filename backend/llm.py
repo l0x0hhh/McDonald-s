@@ -1,14 +1,12 @@
-# 修复说明：在线模型沿用子组/否定校验，DeepSeek 使用 JSON 非思考输出并保留真实失败原因。
+# 在线需求提取与配餐共用 Responses 请求边界；保留子组与否定校验。
 """Extract meal requirements while keeping every explicit hard constraint visible."""
 from __future__ import annotations
 
 import asyncio
 import json
-import os
 import re
 import urllib.error
 import urllib.request
-from urllib.parse import urlsplit
 from collections.abc import Mapping
 from decimal import Decimal, InvalidOperation
 from typing import Any
@@ -22,6 +20,9 @@ from backend.skill.parser import _TASTE_WORDS, _current_data, _finish, _number, 
 
 class ExtractionError(RuntimeError):
     """The online model did not return a trustworthy extraction."""
+    code = "E_LLM_REQUEST_FAILED"
+    message = "需求理解服务请求失败，请重试或直接填写人数和预算。"
+    data = None
 
 
 def _evidence_supports(field: str, value: Any, quote: str) -> bool:
@@ -118,18 +119,26 @@ def _validated_result(model_data: Mapping[str, Any], message: str, current: Any)
 
 
 def _request_model(message: str, current: Any, timeout: float) -> Mapping[str, Any]:
-    key = os.getenv("LLM_API_KEY", "").strip()
-    if not key:
-        raise ExtractionError("未配置 LLM_API_KEY；在线提取不可用")
-    base_url = os.getenv("LLM_BASE_URL", "").rstrip("/")
-    model = os.getenv("LLM_MODEL", "").strip()
-    if not base_url.startswith("https://") or not model:
-        raise ExtractionError("请配置 HTTPS 的 LLM_BASE_URL 和 LLM_MODEL")
+    """Extract on the same Responses transport; optional fields use explicit null."""
+    schema = Requirements.model_json_schema()
+    properties = {}
+    for name, field in schema["properties"].items():
+        field = dict(field)
+        field.pop("default", None)
+        properties[name] = {"anyOf": [field, {"type": "null"}]}
+    extraction_schema = {
+        "type": "object", "additionalProperties": False, "$defs": schema.get("$defs", {}),
+        "properties": {
+            "updates": {"type": "object", "additionalProperties": False,
+                        "properties": properties, "required": list(properties)},
+            "evidence": {"type": "object", "additionalProperties": False,
+                         "properties": {name: {"type": ["string", "null"]} for name in properties},
+                         "required": list(properties)},
+        }, "required": ["updates", "evidence"],
+    }
     payload = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": (
-                "只提取这一句用户明确表达的点餐需求。只返回 JSON 对象，键为 updates、evidence。"
+        "model": _configuration.settings.llm_model,
+        "instructions": ("只提取这一句用户明确表达的点餐需求。只返回 JSON 对象，键为 updates、evidence。"
                 "updates 只能包含字段 people、budget_type、budget_fen、dietary_constraints、"
                 "exclude_beverage、appetite、preferred_tags、membership_status、meal_frequency_per_month、"
                 "habit_horizon_months、habitual_tags。evidence 的每个同名键必须是原句逐字短引文。"
@@ -141,40 +150,21 @@ def _request_model(message: str, current: Any, timeout: float) -> Mapping[str, A
                 "其他过敏或忌口不要擅自承诺支持。不要计算餐品价格。"
                 "总人数与其中/另外几人的偏好人数必须区分，不要用子组覆盖总人数。"
                 "部分人不要饮料不等于整单不要；遇到按人分配饮料时不修改整单饮料字段。"
-                "正确处理否定和更正，例如不是大饭量、不喜欢牛肉改成鸡肉。"
-            )},
-            {"role": "user", "content": json.dumps({"message": message, "current": _current_data(current)}, ensure_ascii=False)},
-        ],
+                "正确处理否定和更正，例如不是大饭量、不喜欢牛肉改成鸡肉。"),
+        "input": json.dumps({"message": message, "current": _current_data(current)}, ensure_ascii=False),
+        "text": {"format": {"type": "json_schema", "name": "requirement_updates", "strict": True,
+                              "schema": extraction_schema}},
     }
-    # DeepSeek 默认开启思考；短需求提取显式关闭思考并要求 JSON，避免超时或解释文本。
-    if urlsplit(base_url).hostname == "api.deepseek.com":
-        payload.update({"thinking": {"type": "disabled"}, "response_format": {"type": "json_object"},
-                        "stream": False, "max_tokens": 1200})
-    request = urllib.request.Request(
-        base_url + "/chat/completions",
-        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-        headers={"Authorization": "Bearer " + key, "Content-Type": "application/json"},
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            body = json.load(response)
-        if body["choices"][0].get("finish_reason") not in (None, "stop"):
-            raise ExtractionError("模型输出未完整结束，请重试")
-        content = body["choices"][0]["message"]["content"]
-        if not isinstance(content, str):
-            raise ValueError("content 不是文本")
-        content = re.sub(r"^```(?:json)?\s*|\s*```$", "", content.strip(), flags=re.I)
-        parsed = json.loads(content)
-        if not isinstance(parsed, Mapping):
-            raise ValueError("JSON 不是对象")
-        return parsed
-    except urllib.error.HTTPError as exc:
-        raise ExtractionError(f"模型服务请求失败（HTTP {exc.code}），请检查 API Key、模型名和额度") from exc
-    except (urllib.error.URLError, TimeoutError) as exc:
-        raise ExtractionError("模型服务请求失败或超时，请稍后重试") from exc
-    except (ValueError, KeyError, IndexError, TypeError) as exc:
-        raise ExtractionError("模型返回格式错误，请重试") from exc
+    response = _responses_request(payload, timeout)
+    if isinstance(response, str):
+        try:
+            response = json.loads(response)
+        except ValueError as exc:
+            raise ExtractionError("模型返回格式错误，请重试") from exc
+    if not isinstance(response, Mapping):
+        raise ExtractionError("模型返回格式错误，请重试")
+    return {key: {k: v for k, v in response.get(key, {}).items() if v is not None}
+            for key in ("updates", "evidence")}
 
 
 async def extract_requirements(
@@ -187,9 +177,66 @@ async def extract_requirements(
     """Return the shared chat contract; never conceal online failures as model success."""
     if not isinstance(message, str) or not message.strip():
         raise ValueError("请输入点餐需求")
-    if demo_mode:
-        result = rule_extract(message, current)
-        result["parse_source"] = "demo_template"
-        return result
     model_data = await asyncio.to_thread(_request_model, message, current, timeout)
     return _validated_result(model_data, message, current)
+
+
+def _responses_request(payload: dict, timeout: float):
+    """The production boundary is fixed to DeepSeek; no subscription/API fallback."""
+    return _api_responses_request(payload, timeout)
+
+
+def _api_responses_request(payload: dict, timeout: float):
+    """Adapt the internal Responses contract to DeepSeek JSON chat completion."""
+    from .services.llm_planner import PlanningError
+    settings = _configuration.settings
+    key = settings.deepseek_api_key
+    if not key:
+        raise PlanningError("E_LLM_NOT_CONFIGURED", "请先在设置中保存 DeepSeek API Key。")
+    schema = payload.get("text", {}).get("format", {}).get("schema")
+    instructions = str(payload.get("instructions") or "")
+    instructions += "\n只返回一个符合以下 schema 的有效 JSON 对象，不要 Markdown 或额外说明。"
+    if schema is not None:
+        instructions += "\nJSON schema: " + json.dumps(schema, ensure_ascii=False)
+    model_input = payload.get("input", "")
+    if not isinstance(model_input, str):
+        model_input = json.dumps(model_input, ensure_ascii=False)
+    body = {"model": _configuration.DEEPSEEK_MODEL,
+            "messages": [{"role": "system", "content": instructions},
+                         {"role": "user", "content": model_input}],
+            "response_format": {"type": "json_object"},
+            "thinking": {"type": "disabled"}, "stream": False}
+    request = urllib.request.Request(
+        _configuration.DEEPSEEK_BASE_URL + "/chat/completions",
+        data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
+        headers={"Authorization": "Bearer " + key, "Content-Type": "application/json"}, method="POST")
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            result = json.load(response)
+        choices = result.get("choices")
+        if not isinstance(choices, list) or len(choices) != 1:
+            raise ValueError("missing structured response")
+        choice = choices[0]
+        if choice.get("finish_reason") not in (None, "stop"):
+            raise ValueError("incomplete response")
+        content = choice["message"]["content"]
+        if not isinstance(content, str) or not content.strip():
+            raise ValueError("missing structured response")
+        return content
+    except urllib.error.HTTPError as exc:
+        # Never surface upstream text, URLs or credential-bearing exception strings.
+        if exc.code in (402, 429):
+            try:
+                error = json.loads(exc.read(8192)).get("error", {})
+            except (ValueError, TypeError, AttributeError):
+                error = {}
+            if (exc.code == 402 or error.get("code") in ("credit_balance_exhausted", "insufficient_quota")
+                    or error.get("type") == "insufficient_quota"):
+                raise PlanningError("E_LLM_QUOTA", "DeepSeek API 余额或额度不足，请处理后重试。") from None
+        raise PlanningError("E_LLM_REQUEST_FAILED", f"搭配服务请求失败（HTTP {exc.code}），请稍后重试。") from None
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
+        raise PlanningError("E_LLM_REQUEST_FAILED", "搭配服务请求失败或返回不完整，请稍后重试。") from None
+
+
+async def request_responses(payload: dict, timeout: float = 60):
+    return await asyncio.to_thread(_responses_request, payload, timeout)

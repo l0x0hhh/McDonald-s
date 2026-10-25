@@ -32,9 +32,10 @@ class ParserTests(unittest.TestCase):
             with self.subTest(data=data), self.assertRaises(RequirementError):
                 parse_requirements(data)
 
-    def test_demo_contract_and_explicit_source(self):
-        result = asyncio.run(extract_requirements("6人，总预算150元，其中2人不吃辣", demo_mode=True))
-        self.assertEqual(result["parse_source"], "demo_template")
+    def test_injected_online_contract_and_explicit_source(self):
+        with patch("backend.llm._request_model", return_value={"updates": {}, "evidence": {}}):
+            result = asyncio.run(extract_requirements("6人，总预算150元，其中2人不吃辣", demo_mode=True))
+        self.assertEqual(result["parse_source"], "llm")
         self.assertIsInstance(result["draft"], RequirementsDraft)
         self.assertIsInstance(result["requirements"], Requirements)
         self.assertEqual(result["requirements"].total_budget_fen, 15000)
@@ -116,9 +117,12 @@ class ParserTests(unittest.TestCase):
         self.assertFalse(negated["requirements"].exclude_beverage)
 
     def test_online_without_key_raises_instead_of_faking_llm(self):
-        with patch.dict(os.environ, {"LLM_API_KEY": ""}):
-            with self.assertRaises(ExtractionError):
+        from backend.config import settings
+        with patch.object(settings, "deepseek_api_key", ""), patch.dict(os.environ, {"LLM_API_KEY": "", "OPENAI_API_KEY": ""}):
+            from backend.services.llm_planner import PlanningError
+            with self.assertRaises(PlanningError) as error:
                 asyncio.run(extract_requirements("4人，人均30元"))
+            self.assertEqual(error.exception.code, "E_LLM_NOT_CONFIGURED")
 
     def test_online_mock_requires_literal_evidence(self):
         response = {"updates": {"people": 20, "preferred_tags": ["chicken"]},
@@ -247,24 +251,33 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(result["requirements"].appetite, "normal")
         self.assertEqual(result["requirements"].preferred_tags, [])
 
-    def test_deepseek_request_uses_json_non_thinking_and_selected_model(self):
-        response = {"choices": [{"finish_reason": "stop", "message": {
-            "content": json.dumps({"updates": {}, "evidence": {}})}}]}
-        with patch.dict(os.environ, {"LLM_BASE_URL": "https://api.deepseek.com", "LLM_MODEL": "deepseek-flash", "LLM_API_KEY": "test-only"}):
-            with patch("backend.llm.urllib.request.urlopen") as request:
-                request.return_value.__enter__.return_value = io.BytesIO(json.dumps(response).encode())
-                self.assertEqual(_request_model("2人，总预算100元", None, 12), {"updates": {}, "evidence": {}})
-                payload = json.loads(request.call_args.args[0].data)
-                self.assertEqual(payload["model"], "deepseek-flash")
-                self.assertEqual(payload["thinking"], {"type": "disabled"})
-                self.assertEqual(payload["response_format"], {"type": "json_object"})
+    def test_deepseek_request_embeds_schema_and_uses_fixed_model(self):
+        from backend.config import settings
+        response = {"choices": [{"message": {"content": json.dumps({"updates": {}, "evidence": {}})}, "finish_reason": "stop"}]}
+        with patch.object(settings, "deepseek_api_key", "test-only"), patch.object(settings, "llm_model", "test-selected-model"):
+            with patch.dict(os.environ, {"LLM_API_KEY": "test-only"}):
+                with patch("backend.llm.urllib.request.urlopen") as request:
+                    request.return_value.__enter__.return_value = io.BytesIO(json.dumps(response).encode())
+                    self.assertEqual(_request_model("2人，总预算100元", None, 12), {"updates": {}, "evidence": {}})
+                    payload = json.loads(request.call_args.args[0].data)
+                    self.assertEqual(payload["model"], "deepseek-flash")
+                    self.assertEqual(request.call_args.args[0].full_url, "https://api.deepseek.com/chat/completions")
+                    self.assertEqual(payload["response_format"], {"type": "json_object"})
+                    self.assertEqual(payload["thinking"], {"type": "disabled"})
+                    system = payload["messages"][0]["content"]
+                    schema = json.loads(system.split("JSON schema: ", 1)[1])
+                    self.assertFalse(schema["additionalProperties"])
+                    self.assertEqual(schema["required"], ["updates", "evidence"])
 
     def test_http_error_retains_status_without_leaking_credentials(self):
-        with patch.dict(os.environ, {"LLM_BASE_URL": "https://api.deepseek.com", "LLM_MODEL": "deepseek-flash", "LLM_API_KEY": "test-only"}):
+        from backend.services.llm_planner import PlanningError
+        from backend.config import settings
+        with patch.object(settings, "deepseek_api_key", "test-only"):
             with patch("backend.llm.urllib.request.urlopen", side_effect=urllib.error.HTTPError("https://api.deepseek.com/chat/completions", 401, "Unauthorized", {}, None)):
-                with self.assertRaisesRegex(ExtractionError, "HTTP 401") as error:
+                with self.assertRaisesRegex(PlanningError, "HTTP 401") as error:
                     _request_model("2人，总预算100元", None, 12)
                 self.assertNotIn("test-only", str(error.exception))
+                self.assertEqual(error.exception.code, "E_LLM_REQUEST_FAILED")
 
     def test_online_model_adds_evidenced_chinese_budget_beyond_rule_template(self):
         message = "三位，人均三十元，喜欢鸡肉"

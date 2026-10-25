@@ -97,15 +97,15 @@ class McpHttpClient:
         try:
             resp = await self._client.post(self._url, json=payload, headers=headers)
         except httpx.TimeoutException as exc:
-            raise McpTimeout(f"MCP 请求超时: {exc}") from exc
+            raise McpTimeout("MCP 请求超时，请稍后重试。") from None
         except httpx.HTTPError as exc:
-            raise McpError(f"MCP 网络错误: {exc}") from exc
+            raise McpError("MCP 网络请求失败，请稍后重试。") from None
 
         session_id = resp.headers.get("mcp-session-id")
         if session_id:
             self._session_id = session_id
         if resp.status_code >= 400:
-            raise McpError(f"MCP HTTP {resp.status_code}: {resp.text[:300]}")
+            raise McpError(f"MCP HTTP {resp.status_code}，请检查服务配置后重试。")
         if not expect_body:
             return resp
         return resp
@@ -127,7 +127,7 @@ class McpHttpClient:
         try:
             return json.loads(resp.text)
         except json.JSONDecodeError as exc:
-            raise McpError(f"MCP 返回非 JSON 内容: {resp.text[:200]}") from exc
+            raise McpError("MCP 返回格式异常，请稍后重试。") from None
 
     async def _request(self, method: str, params: Optional[dict] = None) -> Any:
         payload: dict[str, Any] = {
@@ -143,7 +143,7 @@ class McpHttpClient:
         if not isinstance(data, dict):
             raise McpError("MCP 响应格式异常")
         if "error" in data and data["error"]:
-            raise McpError(f"MCP 错误: {data['error']}")
+            raise McpError("MCP 服务返回错误，请稍后重试。")
         return data.get("result")
 
     # ------------------------------------------------------------ 协议
@@ -175,7 +175,7 @@ class McpHttpClient:
                 pass  # 个别服务器对该通知返回异常体，可忽略
             self._initialized = True
             return
-        raise McpError(f"MCP initialize 失败: {last_error}")
+        raise McpError("MCP 初始化失败，请检查服务配置后重试。")
 
     async def call_tool(self, name: str, arguments: Optional[dict] = None) -> dict:
         await self.initialize()
@@ -185,7 +185,7 @@ class McpHttpClient:
         if not isinstance(result, dict):
             raise McpError(f"工具 {name} 返回结构异常")
         if result.get("isError"):
-            raise McpError(f"工具 {name} 执行失败: {str(result)[:300]}")
+            raise McpError(f"工具 {name} 执行失败，请稍后重试。")
         content = result.get("content") or []
         texts = [c.get("text", "") for c in content if isinstance(c, dict) and c.get("type") == "text"]
         if not texts:

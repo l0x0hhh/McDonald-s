@@ -18,13 +18,15 @@ import './plan-cards.css';
 import './plan-transition.css';
 
 const planPresentation = {
+  recommended: {title: '推荐搭配', badge: '为你搭配', icon: ChefHat},
+  alternative: {title: '换个搭配', badge: '另一种选择', icon: Utensils},
   cheapest: { title: planTitles.cheapest, badge: '价格优先', icon: PiggyBank },
   balanced: { title: planTitles.balanced, badge: '多样搭配', icon: Utensils },
   taste: { title: planTitles.taste, badge: '口味偏好', icon: ChefHat },
 } satisfies Record<PlanType, { title: string; badge: string; icon: typeof ChefHat }>;
 
 const spicyLabels = {
-  mild: '本地规则不辣',
+  mild: '本地判断不辣',
   unknown: '辣度未知',
   spicy: '辣味',
 } as const;
@@ -51,7 +53,7 @@ export function FoodImage({ item, transitionId }: { item: PlanItem; transitionId
 }
 
 function nutritionValue(value: number | null | undefined, unit: string): string {
-  return value == null ? '未知' : `${value} ${unit}`;
+  return value == null ? '暂无数据' : `${value} ${unit}`;
 }
 
 function basketQuantities(plan: Plan): Map<string, number> {
@@ -73,11 +75,13 @@ export default function PlanCards({
   onSelect,
   people,
   nonSpicyPeople,
+  disabled = false,
 }: {
   plans: Plan[];
   onSelect: (plan: Plan) => void;
   people?: number;
   nonSpicyPeople?: number;
+  disabled?: boolean;
 }) {
   const reducedMotion = useLiveReducedMotion();
   const submittedPeople = typeof people === 'number' && Number.isInteger(people) && people > 0
@@ -92,6 +96,7 @@ export default function PlanCards({
       {plans.map((plan, planIndex) => {
         const presentation = planPresentation[plan.type];
         const Icon = presentation.icon;
+        const title = plan.type === 'recommended' || plan.type === 'alternative' ? plan.title : presentation.title;
         const summary = plan.summary.trim();
         const reason = plan.reasons.find((entry) => entry.trim())?.trim();
         const basket = baskets[planIndex];
@@ -109,15 +114,15 @@ export default function PlanCards({
         return (
           <motion.article
             key={plan.plan_id}
-            className={`plan-card${plan.type === 'cheapest' ? ' featured' : ''}`}
-            aria-label={presentation.title}
+            className={`plan-card${plan.type === 'cheapest' || plan.type === 'recommended' ? ' featured' : ''}`}
+            aria-label={title}
             {...entrance}
             whileHover={undefined}
           >
             <header className="plan-card-header">
               <h4>
                 <span className="card-station-icon" aria-hidden="true"><Icon size={19} /></span>
-                <motion.span className="plan-shared-label" {...sharedPlanElement(planTransitionId(plan.plan_id, 'title'), reducedMotion)} transition={{ layout: planSharedTransition }}>{presentation.title}</motion.span>
+                <motion.span className="plan-shared-label" {...sharedPlanElement(planTransitionId(plan.plan_id, 'title'), reducedMotion)} transition={{ layout: planSharedTransition }}>{title}</motion.span>
               </h4>
               <span className="plan-label">{presentation.badge}</span>
             </header>
@@ -125,7 +130,7 @@ export default function PlanCards({
             <div className="plan-card-body">
               <dl className="plan-metrics" aria-label="方案关键对比">
                 <div className="plan-metric metric-total">
-                  <dt>总价</dt>
+                  <dt>{plan.price_basis === 'live_quote' ? '官方报价' : '总价'}</dt>
                   <motion.dd className="price" {...sharedPlanElement(planTransitionId(plan.plan_id, 'total'), reducedMotion)} transition={{ layout: planSharedTransition }}><span>¥</span>{formatMoney(plan.total_fen)}</motion.dd>
                 </div>
                 <div className="plan-metric">
@@ -139,7 +144,7 @@ export default function PlanCards({
                   <small>预算 ¥{formatMoney(plan.budget_fen)}</small>
                 </div>
                 <div className={`plan-metric metric-non-spicy${nonSpicyShortfall ? ' metric-warning' : ''}`}>
-                  <dt>不辣保障</dt>
+                  <dt>不辣主食</dt>
                   <dd>
                     {requestedNonSpicy == null
                       ? `${plan.non_spicy_servings} 份`
@@ -151,14 +156,15 @@ export default function PlanCards({
                     {requestedNonSpicy == null
                       ? '需求未确认'
                       : requestedNonSpicy === 0
-                        ? `本地规则不辣 ${plan.non_spicy_servings} 份`
+                        ? `本地判断不辣 ${plan.non_spicy_servings} 份`
                         : nonSpicyShortfall
                           ? `还差 ${nonSpicyShortfall} 份`
-                          : '已满足 · 按本地规则'}
+                          : '已满足 · 本地判断'}
                   </small>
                 </div>
               </dl>
 
+              {plan.quote_breakdown && <div className="quote-breakdown">{Object.entries({ packingPrice: '包装费', tablewarePrice: '餐具费', deliveryPrice: '配送费', discount: '优惠' }).map(([key, label]) => plan.quote_breakdown?.[key] == null ? null : <span key={key}>{label} ¥{formatMoney(plan.quote_breakdown[key]!)}</span>)}</div>}
               {summary && <p className="plan-spec plan-summary">{summary}</p>}
 
               <div className="plan-items">
@@ -175,7 +181,7 @@ export default function PlanCards({
                       <strong>{item.name}</strong>
                       <p>
                         <span>× {item.quantity}</span>
-                        <span>¥{formatMoney(item.line_total_fen)}</span>
+                        <span>{item.line_price_basis === 'live_quote' ? '小计' : '参考'} ¥{formatMoney(item.line_total_fen)}</span>
                         <span className={`spicy-tag ${item.spicy_level}`}>
                           {spicyLabels[item.spicy_level]}
                         </span>
@@ -225,9 +231,10 @@ export default function PlanCards({
                 <motion.button
                   className="choose-button"
                   type="button"
-                  aria-label={`就选这份${presentation.title}`}
+                  aria-label={`就选这份${title}`}
+                  disabled={disabled || !plan.quote_id}
                   onClick={() => onSelect(plan)}
-                  {...buttonMotion(reducedMotion)}
+                  {...buttonMotion(reducedMotion, disabled || !plan.quote_id)}
                 >
                   就选这份<ArrowRight size={15} aria-hidden="true" />
                 </motion.button>
@@ -248,7 +255,7 @@ export default function PlanCards({
                       </div>
                       <div>
                         匹配状态：{item.nutrition == null
-                          ? '未知'
+                          ? '暂无数据'
                           : item.nutrition.matched ? '已匹配' : '未匹配'}
                         {item.nutrition?.source?.trim() && ` · 来源：${item.nutrition.source}`}
                       </div>

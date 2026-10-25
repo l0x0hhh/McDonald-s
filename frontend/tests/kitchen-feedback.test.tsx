@@ -1,9 +1,11 @@
+import { installOnlineApi } from './helpers/online-api'
+installOnlineApi()
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from '../src/App'
 import * as api from '../src/lib/api'
 import type { PlanResponse } from '../src/lib/types'
-import sample from '../../docs/api-examples/plans_6人150元2人不吃辣.json'
+import {planResponse} from './helpers/online-api'
 
 const motionPreference = vi.hoisted(() => ({ reduced: false }))
 vi.mock('motion/react', async (original) => ({
@@ -18,11 +20,11 @@ function deferred<T>() {
   return { promise, resolve, reject }
 }
 
-function response() { return structuredClone(sample.data) as PlanResponse }
+function response() { return planResponse() }
 async function start() {
   render(<App />)
   await screen.findByRole('button', { name: /广州今日广场/ })
-  fireEvent.click(screen.getByRole('button', { name: '生成省钱方案' }))
+  fireEvent.click(screen.getByRole('button', { name: '看看怎么点' }))
 }
 afterEach(() => { motionPreference.reduced = false })
 
@@ -30,13 +32,15 @@ describe('non-blocking kitchen feedback', () => {
   it('shows an honest preparation state without fake progress or blocking the brief', async () => {
     vi.spyOn(api, 'getPlans').mockReturnValueOnce(deferred<PlanResponse>().promise)
     await start()
-    expect(await screen.findByRole('heading', { name: '小厨房正在备餐' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '正在搭配…' })).toBeInTheDocument()
     const results = screen.getByRole('region', { name: '配餐结果' })
     expect(results).toHaveAttribute('aria-busy', 'true')
     expect(within(results).getByRole('status')).toHaveAttribute('aria-live', 'polite')
-    expect(within(results).getByText(/正在读取已保存的方案样例/)).toBeInTheDocument()
+    expect(within(results).getByText('正在查看菜单和价格，请稍等。')).toBeInTheDocument()
+    expect(within(results).getByText('按人数、预算和口味选餐')).toBeInTheDocument()
+    expect(within(results).getByText('你可以继续改需求，改完后再配餐。')).toBeInTheDocument()
     expect(within(results).queryByRole('progressbar')).toBeNull()
-    expect(screen.getByRole('button', { name: '生成省钱方案' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '看看怎么点' })).toBeDisabled()
     expect(screen.getByLabelText('预算金额')).toBeEnabled()
     expect(screen.getByRole('button', { name: '增加用餐人数' })).toBeEnabled()
   })
@@ -52,8 +56,10 @@ describe('non-blocking kitchen feedback', () => {
     expect(screen.getAllByRole('alert')).toHaveLength(1)
     expect(screen.getByLabelText('用餐人数')).toHaveValue(6)
     expect(screen.getByLabelText('预算金额')).toHaveValue(150)
-    fireEvent.click(within(alert).getByRole('button', { name: '重新生成省钱方案' }))
-    expect(await within(results).findByText('3 份方案已出餐')).toBeInTheDocument()
+    fireEvent.click(within(alert).getByRole('button', { name: '重新配餐' }))
+    expect(await within(results).findByRole('heading', { name: '已生成 3 份方案' })).toBeInTheDocument()
+    expect(within(results).getByText('看看总价、人均和不辣主食，选一份合适的。')).toBeInTheDocument()
+    expect(within(results).queryByText(/保障|保证|精心搭配/)).not.toBeInTheDocument()
     expect(within(results).getAllByRole('article')).toHaveLength(3)
     expect(within(results).queryByRole('alert')).toBeNull()
     expect(getPlans).toHaveBeenCalledTimes(2)
@@ -64,10 +70,10 @@ describe('non-blocking kitchen feedback', () => {
     const pending = deferred<PlanResponse>()
     vi.spyOn(api, 'getPlans').mockReturnValueOnce(pending.promise)
     await start()
-    await screen.findByRole('heading', { name: '小厨房正在备餐' })
+    await screen.findByRole('heading', { name: '正在搭配…' })
     fireEvent.click(screen.getByRole('button', { name: '增加用餐人数' }))
     await act(async () => pending.resolve(response()))
-    await waitFor(() => expect(screen.queryByText('3 份方案已出餐')).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByRole('heading', { name: '已生成 3 份方案' })).not.toBeInTheDocument())
     expect(screen.queryByRole('button', { name: /就选这份/ })).not.toBeInTheDocument()
     expect(screen.getByRole('region', { name: '配餐结果' })).toHaveAttribute('aria-busy', 'false')
     expect(screen.getByLabelText('用餐人数')).toHaveValue(7)
@@ -81,7 +87,7 @@ describe('non-blocking kitchen feedback', () => {
     await act(async () => pending.reject(new Error('旧请求失败')))
     await waitFor(() => expect(screen.getByRole('region', { name: '配餐结果' })).toHaveAttribute('aria-busy', 'false'))
     expect(screen.queryByText('旧请求失败')).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: '重新生成省钱方案' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '重新配餐' })).not.toBeInTheDocument()
   })
 
   it('does not announce no-solution as completed plans', async () => {
@@ -90,8 +96,8 @@ describe('non-blocking kitchen feedback', () => {
     result.unsatisfiable_reason = '预算暂时不足'
     vi.spyOn(api, 'getPlans').mockResolvedValueOnce(result)
     await start()
-    expect(await screen.findByRole('heading', { name: '这单，还差一点点' })).toBeInTheDocument()
-    expect(screen.queryByText(/份方案已出餐/)).not.toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '暂时没有合适的搭配' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /已生成 \d+ 份方案/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /就选这份/ })).not.toBeInTheDocument()
   })
 
@@ -99,7 +105,7 @@ describe('non-blocking kitchen feedback', () => {
     motionPreference.reduced = true
     vi.spyOn(api, 'getPlans').mockReturnValueOnce(deferred<PlanResponse>().promise)
     await start()
-    await screen.findByRole('heading', { name: '小厨房正在备餐' })
+    await screen.findByRole('heading', { name: '正在搭配…' })
     const feedback = document.querySelector('[data-feedback="loading"]')!
     expect(feedback).toHaveAttribute('data-motion', 'still')
     expect(feedback.querySelector('.feedback-decoration')).toHaveAttribute('aria-hidden', 'true')
@@ -110,7 +116,7 @@ describe('non-blocking kitchen feedback', () => {
     vi.spyOn(api, 'parseChat').mockRejectedValueOnce(new Error('这句需求暂未读懂'))
     render(<App />)
     await screen.findByRole('button', { name: /广州今日广场/ })
-    fireEvent.change(screen.getByLabelText(/和小厨神说一声/), { target: { value: '试一下' } })
+    fireEvent.change(screen.getByLabelText(/这顿想怎么吃/), { target: { value: '试一下' } })
     fireEvent.click(screen.getByRole('button', { name: '发送点餐需求' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('这句需求暂未读懂')
     expect(within(screen.getByRole('region', { name: '配餐结果' })).queryByRole('alert')).toBeNull()
@@ -135,7 +141,7 @@ describe('non-blocking kitchen feedback', () => {
     const budget = screen.getByLabelText('预算金额')
     budget.focus()
     await act(async () => pending.resolve(response()))
-    await screen.findByText('3 份方案已出餐')
+    await screen.findByRole('heading', { name: '已生成 3 份方案' })
     expect(budget).toHaveFocus()
   })
 })

@@ -1,3 +1,5 @@
+import { installOnlineApi } from './helpers/online-api'
+installOnlineApi()
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from '../src/App'
@@ -48,7 +50,7 @@ describe('quiet kitchen idle ambience', () => {
 
   it('lets the user pause and resume without affecting the ordering button', async () => {
     const scene = await showScene()
-    fireEvent.click(screen.getByRole('button', { name: '暂停氛围动效' }))
+    fireEvent.click(screen.getByRole('button', { name: '暂停动效' }))
     expect(scene).toHaveAttribute('data-idle', 'paused')
     expect(screen.getByRole('button', { name: '开启动效' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: '开始配餐' })).toBeEnabled()
@@ -79,7 +81,7 @@ describe('quiet kitchen idle ambience', () => {
     const scene = await showScene()
     expect(scene).toHaveAttribute('data-idle', 'paused')
     expect(scene).toHaveAttribute('data-reduced-motion', 'true')
-    expect(screen.queryByRole('button', { name: '暂停氛围动效' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '暂停动效' })).not.toBeInTheDocument()
   })
 
   it('resumes when the system turns reduced motion off without remounting', async () => {
@@ -92,7 +94,7 @@ describe('quiet kitchen idle ambience', () => {
     })
     expect(scene).toHaveAttribute('data-reduced-motion', 'false')
     expect(scene).toHaveAttribute('data-idle', 'running')
-    expect(screen.getByRole('button', { name: '暂停氛围动效' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '暂停动效' })).toBeInTheDocument()
   })
 
   it('stops when the system turns reduced motion on without remounting', async () => {
@@ -104,7 +106,7 @@ describe('quiet kitchen idle ambience', () => {
     })
     expect(scene).toHaveAttribute('data-reduced-motion', 'true')
     expect(scene).toHaveAttribute('data-idle', 'paused')
-    expect(screen.queryByRole('button', { name: '暂停氛围动效' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '暂停动效' })).not.toBeInTheDocument()
   })
 
   it('pauses while a dialog is open without changing the user pause setting', async () => {

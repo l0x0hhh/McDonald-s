@@ -126,3 +126,13 @@ def describe_missing(
             )
         return "当前决策模块不支持「不带饮料」约束，已按硬约束拒绝，未返回普通方案。"
     return f"能力 {capability} 当前不可用"
+
+
+def planner_capabilities(*, ready: bool, online: bool = True) -> dict[str, bool]:
+    """LLM path readiness; store-specific facts are checked again for each basket."""
+    return {
+        "chat_draft": ready, "combo_details": online,
+        "exclude_beverage": ready and online, "appetite_planning": ready and online,
+        "taste_matching": ready and online, "membership_comparison": False,
+        "habit_estimate": False, "nutrition_summary": False, "campaigns": False,
+    }

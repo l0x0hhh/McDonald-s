@@ -1,17 +1,35 @@
 # 整合说明：保留 B 的模型配置；能力由接口统一读取显式声明并核对事实。
 """配置与运行模式。
 
-所有凭据只从环境变量或本地 .env 读取，绝不写入代码或仓库。
-.env 已在 .gitignore 中排除；仓库只提供 .env.example。
+凭据从服务端环境变量、本地 .env 或本机 settings.local.json 读取。
+本地凭据文件均被 .gitignore 排除；API 只公开是否已配置。
 """
 
 from __future__ import annotations
 
 import os
+import json
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
+LOCAL_SETTINGS_PATH = DATA_DIR / "settings.local.json"
+DEEPSEEK_BASE_URL = "https://api.deepseek.com"
+DEEPSEEK_MODEL = "deepseek-flash"
+
+
+def read_local_settings(path: Path) -> dict[str, str]:
+    """Read only supported secret fields; malformed local files expose no data."""
+    if not path.exists():
+        return {}
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(value, dict):
+        return {}
+    return {key: value[key].strip() for key in ("deepseek_api_key", "mcd_mcp_key")
+            if isinstance(value.get(key), str) and value[key].strip()}
 
 
 def _load_dotenv(path: Path) -> None:
@@ -35,19 +53,19 @@ _load_dotenv(BASE_DIR.parent / ".env")
 
 
 class Settings:
-    """运行时配置。
+    """Online-only application settings; tests inject their own providers."""
 
-    data_mode:
-        live  —— 只走真实 MCP，失败即报错（用于证明真实集成）
-        demo  —— 只走本地快照，全程标注演示数据
-        auto  —— 优先真实 MCP，失败自动降级到快照并在响应里标明降级原因
-    """
-
-    def __init__(self) -> None:
-        self.mcd_mcp_url: str = os.getenv("MCD_MCP_URL", "").strip()
-        self.mcd_mcp_token: str = os.getenv("MCD_MCP_TOKEN", "").strip()
+    def __init__(self, local_path: Path = LOCAL_SETTINGS_PATH) -> None:
+        local = read_local_settings(local_path)
+        self.mcd_mcp_url: str = os.getenv("MCD_MCP_URL", "").strip() or "https://mcp.mcd.cn"
+        self.mcd_mcp_token: str = local.get("mcd_mcp_key", os.getenv("MCD_MCP_TOKEN", "").strip())
+        self.deepseek_api_key: str = local.get("deepseek_api_key", os.getenv("DEEPSEEK_API_KEY", "").strip())
         self.mcd_mcp_context: str = os.getenv("MCD_MCP_CONTEXT", "").strip()
-        self.data_mode: str = os.getenv("DATA_MODE", "auto").strip().lower()
+        self.data_mode: str = "live"
+        self.llm_provider = "deepseek"
+        self.codex_model = os.getenv("CODEX_MODEL", "").strip()
+        self.llm_base_url = DEEPSEEK_BASE_URL
+        self.llm_model = DEEPSEEK_MODEL
         self.default_store_code: str = os.getenv("DEFAULT_STORE_CODE", "1400011").strip()
         self.default_city: str = os.getenv("DEFAULT_CITY", "广州").strip()
         self.default_store_keyword: str = os.getenv(
@@ -64,23 +82,25 @@ class Settings:
     def has_mcp_credentials(self) -> bool:
         return bool(self.mcd_mcp_url and self.mcd_mcp_token)
 
+    @property
+    def llm_configured(self) -> bool:
+        return bool(self.deepseek_api_key)
+
     def describe(self) -> dict:
-        """给前端看的安全信息，不含任何凭据。"""
+        """Online readiness only; never expose credentials."""
+        from .services.capabilities import planner_capabilities
+        from .services.llm_planner import SKILL_PATH
+        ready = self.llm_configured and SKILL_PATH.is_file()
         return {
-            "contract_version": "1.1",
-            "session_scope": "single_demo",
-            "data_limitations": [
-                "套餐只使用可核实的默认选配；缺少结构或差价时排除，暂未搜索任意换配组合。",
-                "同篮子收银报价、卡费资格与活动读取尚未接通，相应能力仍不可用。",
-                "菜单价格为参考估算；演示快照不是实时收银报价。",
-            ],
-            "data_mode": self.data_mode,
-            "mcp_configured": self.has_mcp_credentials,
-            "default_store_code": self.default_store_code,
-            "default_city": self.default_city,
-            "default_store_keyword": self.default_store_keyword,
-            "order_type": self.order_type,
+            "contract_version": "1.2", "session_scope": "single_user",
+            "data_limitations": ["商品行价为菜单参考；总应付以官方报价为准。", "未知营养不计为零。"],
+            "data_mode": "live", "mcp_configured": self.has_mcp_credentials,
+            "llm_provider": self.llm_provider, "llm_configured": self.llm_configured, "planner_ready": ready,
+            "ordering_available": ready and self.has_mcp_credentials,
+            "default_store_code": self.default_store_code, "default_city": self.default_city,
+            "default_store_keyword": self.default_store_keyword, "order_type": self.order_type,
             "be_type": self.be_type,
+            "capabilities": planner_capabilities(ready=ready, online=self.has_mcp_credentials),
         }
 
 

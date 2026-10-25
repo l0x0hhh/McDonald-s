@@ -1,6 +1,8 @@
 import type { PlanType } from './types'
 
 export const planTitles: Record<PlanType, string> = {
+  recommended: '推荐搭配',
+  alternative: '换个搭配',
   cheapest: '最省方案',
   balanced: '搭配多样',
   taste: '口味匹配',

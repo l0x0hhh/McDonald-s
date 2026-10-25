@@ -4,7 +4,7 @@ import PlanCards from '../src/components/PlanCards'
 import type { Plan } from '../src/lib/types'
 
 const plan: Plan = {
-  plan_id: 'plan-one',
+  plan_id: 'plan-one', quote_id: 'quote-one',
   type: 'cheapest',
   title: '记录中的方案',
   summary: '',
@@ -31,6 +31,13 @@ const plan: Plan = {
 }
 
 describe('plan cards', () => {
+  it('identifies mild spice as a local judgment rather than an official guarantee', () => {
+    const mild: Plan = { ...plan, non_spicy_servings: 2, items: [{ ...plan.items[0], spicy_level: 'mild' }] }
+    render(<PlanCards plans={[mild]} onSelect={() => {}} />)
+    expect(screen.getByText('本地判断不辣')).toBeInTheDocument()
+    expect(screen.queryByText('已核实不辣')).not.toBeInTheDocument()
+  })
+
   it('keeps the station emblem decorative and the card heading accessible', () => {
     render(<PlanCards plans={[plan]} onSelect={() => {}} />)
 
@@ -66,7 +73,15 @@ describe('plan cards', () => {
     const details = card.querySelector('details')
     expect(details).not.toHaveAttribute('open')
     expect(within(card).getByText('查看单品营养信息')).toBeInTheDocument()
-    expect(within(card).getByText(/能量 未知 · 蛋白质 未知 · 脂肪 未知 · 碳水化合物 未知 · 钠 未知/)).toBeInTheDocument()
-    expect(within(card).getByText('匹配状态：未知')).toBeInTheDocument()
+    expect(within(card).getByText(/能量 暂无数据 · 蛋白质 暂无数据 · 脂肪 暂无数据 · 碳水化合物 暂无数据 · 钠 暂无数据/)).toBeInTheDocument()
+    expect(within(card).getByText('匹配状态：暂无数据')).toBeInTheDocument()
+  })
+
+  it('keeps a supplied zero distinct from missing nutrition data', () => {
+    const zeroEnergy: Plan = { ...plan, items: [{ ...plan.items[0], nutrition: { energy_kcal: 0, matched: true, source: '商品营养记录' } }] }
+    render(<PlanCards plans={[zeroEnergy]} onSelect={() => {}} />)
+    expect(screen.getByText(/能量 0 kcal · 蛋白质 暂无数据/)).toBeInTheDocument()
+    expect(screen.getByText(/匹配状态：已匹配/)).toBeInTheDocument()
+    expect(screen.getByText('辣度未知')).toBeInTheDocument()
   })
 })

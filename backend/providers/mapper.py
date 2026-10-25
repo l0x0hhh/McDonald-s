@@ -65,6 +65,9 @@ def classify_spicy(name: str) -> SpicyLevel:
     for kw in rules.get("spicy_keywords", []):
         if kw in name:
             return "spicy"
+    # 营销名中的「焰」既不证明辣，也不能借圆筒等通用词推断不辣。
+    if any(kw in name for kw in rules.get("ambiguous_keywords", [])):
+        return "unknown"
     for kw in rules.get("mild_keywords", []):
         if kw in name:
             return "mild"
@@ -101,7 +104,7 @@ def classify_food_role(
     """判定餐品角色与是否含饮料。
 
     返回 (food_role, beverage_status, is_merchandise, evidence)。
-    判定顺序：非餐品 → 套餐 → 小食 → 饮料 → 主食 → 分类 → unknown。
+    判定顺序：非餐品 → 套餐 → 小食/甜品/饮料名称证据 → 主食 → 分类 → unknown。
     名称优先于分类，因为「炸鸡」分类里同时有整块炸鸡和麦乐鸡/鸡翅这类小食。
     未命中一律返回 unknown，绝不能把「没判定出来」当成「不含饮料」。
     """
@@ -116,13 +119,19 @@ def classify_food_role(
         # 套餐的实际角色由 query-meal-detail 的轮次决定，这里先按「套餐」占位
         return "combo", "unknown", False, "套餐：组成待 query-meal-detail 核实"
 
-    for kw in rules.get("side_keywords", []):
-        if kw in text:
-            return "side", "none", False, f"名称命中小食关键词「{kw}」"
-
-    for kw in rules.get("beverage_keywords", []):
-        if kw in text:
-            return "beverage", "contains", False, f"名称命中饮料关键词「{kw}」"
+    # 形态词在风味词之后：牛奶圆筒是甜品，冰淇淋拿铁仍是饮料。
+    # 不能固定把甜品或小食放在饮料前面，否则会把含饮品的商品标成 none。
+    name_matches = [
+        (text.rfind(kw), len(kw), role, kw)
+        for role in ("side", "dessert", "beverage")
+        for kw in rules.get(f"{role}_keywords", [])
+        if kw in text
+    ]
+    if name_matches:
+        _, _, role, kw = max(name_matches)
+        status: BeverageStatus = "contains" if role == "beverage" else "none"
+        label = {"side": "小食", "dessert": "甜品", "beverage": "饮料"}[role]
+        return role, status, False, f"名称命中{label}关键词「{kw}」"
 
     for kw in rules.get("main_keywords", []):
         if kw in text:
@@ -130,7 +139,7 @@ def classify_food_role(
 
     for kw, role in rules.get("category_roles", {}).items():
         if kw in (category or ""):
-            status: BeverageStatus = "contains" if role == "beverage" else "none"
+            status = {"beverage": "contains", "unknown": "unknown"}.get(role, "none")
             return role, status, False, f"分类「{category}」命中「{kw}」"
 
     return "unknown", "unknown", False, "未命中任何角色规则，角色与含饮料情况均未知"
@@ -167,6 +176,22 @@ def map_stores(raw_stores: list[Any]) -> list[StoreOut]:
             )
         )
     return stores
+
+
+def _needs_unrepresented_modification(value: Any) -> bool:
+    """Official key rule requires every value when unselectedKey is present.
+
+    Current baskets express round selections, not modification key groups. Such
+    an explicitly required group must not be silently discarded; supportModify
+    alone remains harmless and optional.
+    """
+    if isinstance(value, dict):
+        if value.get("unselectedKey"):
+            return True
+        return any(_needs_unrepresented_modification(v) for v in value.values())
+    if isinstance(value, list):
+        return any(_needs_unrepresented_modification(v) for v in value)
+    return False
 
 
 def map_menu(store_code: str, raw_menu: Any) -> tuple[list[MenuItemOut], list[str]]:
@@ -255,7 +280,7 @@ def map_menu(store_code: str, raw_menu: Any) -> tuple[list[MenuItemOut], list[st
                     servings_verified=not is_combo and not is_merch and food_role != "unknown",
                     non_spicy_servings=main_servings if classify_spicy(name) == "mild" else 0,
                     side_servings=int(food_role == "side" and not is_merch),
-                    available=not is_merch,
+                    available=not is_merch and not _needs_unrepresented_modification(detail.get("modification")),
                     price_verified=True,
                     eligibility_verified=False,
                 )
@@ -311,7 +336,8 @@ def map_meal_detail(
                 ComboOptionOut(
                     code=str(raw_choice.get("code") or ""),
                     name=option_name,
-                    diff_price_fen=parse_diff_price_fen(diff_raw),
+                    diff_price_fen=(None if _needs_unrepresented_modification(raw_choice.get("modification"))
+                                    else parse_diff_price_fen(diff_raw)),
                     diff_price_raw=(None if diff_raw is None else str(diff_raw)),
                     is_default=bool(raw_choice.get("isDefault")),
                     food_role=role,
@@ -331,6 +357,10 @@ def map_meal_detail(
                 is_beverage_round=round_is_beverage,
             )
         )
+
+    if _needs_unrepresented_modification(data.get("modification")):
+        rounds = []
+        degraded_reason = "套餐需要当前购物篮尚未支持的完整特制参数"
 
     # 这是全部可选项的保守摘要；蓝区/粉区也要检查，实际方案另按已选项核验。
     beverage_status: BeverageStatus = "unknown"
@@ -366,7 +396,7 @@ def describe_composition(detail: ComboDetailOut) -> Optional[str]:
     parts: list[str] = []
     for r in detail.rounds:
         # 混合轮次展示全部角色，不能因存在主食选项就把整轮宣称为主食。
-        labels = {"main": "主食", "side": "小食", "beverage": "饮料", "unknown": "未知餐品", "combo": "组合"}
+        labels = {"main": "主食", "side": "小食", "dessert": "甜品", "beverage": "饮料", "unknown": "未知餐品", "combo": "组合"}
         roles = list(dict.fromkeys(o.food_role for o in r.options))
         role_text = "/".join(labels[role] for role in roles) or r.name or "未知选项"
         count = str(r.min_quantity) if r.min_quantity is not None else "数量未知"

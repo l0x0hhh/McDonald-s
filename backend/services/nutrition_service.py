@@ -10,7 +10,7 @@ import time
 import math
 from typing import Optional
 
-from ..providers import McpError, SnapshotMenuProvider
+from ..providers import McpError
 from ..config import settings
 from ..schemas import NutritionOut
 from .menu_service import menu_service
@@ -84,32 +84,20 @@ def _to_float(value: object) -> Optional[float]:
 
 
 class NutritionService:
-    def __init__(self) -> None:
+    def __init__(self, menus=None) -> None:
         self._cache: dict[str, tuple[float, dict]] = {}
-        self._snapshot = SnapshotMenuProvider()
+        self.menus = menus if menus is not None else menu_service
 
     async def get_nutrition_map(self) -> dict[str, NutritionOut]:
         """返回 {商品名: 营养信息}，供 B 的方案模块按名称匹配。"""
-        cached = self._cache.get(settings.data_mode)
+        cached = self._cache.get("live")
         if cached and time.monotonic() < cached[0]:
             return cached[1]
 
-        raw: Optional[object] = None
-        provider_result = None
-        if settings.data_mode in ("live", "auto"):
-            try:
-                provider_result = await menu_service._fetch_nutrition_raw()  # noqa: SLF001
-                raw = provider_result.data
-            except McpError:
-                if settings.data_mode == "live":
-                    raise
-                raw = None
-        if raw is None:
-            try:
-                provider_result = await self._snapshot.get_nutrition()
-                raw = provider_result.data
-            except FileNotFoundError:
-                raw = None
+        provider_result = await self.menus._fetch_nutrition_raw()
+        if provider_result.data_source != "live_mcp":
+            raise McpError("营养数据不是在线数据")
+        raw = provider_result.data
 
         rows = parse_nutrition_rows(raw)
         result: dict[str, NutritionOut] = {}
@@ -126,7 +114,7 @@ class NutritionService:
                 fetched_at=provider_result.fetched_at if provider_result else None,
                 data_source=provider_result.data_source if provider_result else None,
             )
-        self._cache[settings.data_mode] = (time.monotonic() + _CACHE_TTL_SECONDS, result)
+        self._cache["live"] = (time.monotonic() + _CACHE_TTL_SECONDS, result)
         return result
 
 

@@ -17,7 +17,7 @@ from typing import ClassVar, Literal, Optional, Tuple
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
 
-PlanType = Literal["cheapest", "balanced", "taste"]
+PlanType = Literal["recommended", "alternative", "cheapest", "balanced", "taste"]
 SpicyLevel = Literal["spicy", "mild", "unknown"]
 DataSource = Literal["live_mcp", "demo_snapshot"]
 # 餐品在一餐里扮演的角色：主食 / 小食 / 饮料 / 套餐 / 未知
@@ -348,6 +348,8 @@ class PlanningContext(BaseModel):
     membership_facts: Optional[dict] = None
     promotions: list[dict] = Field(default_factory=list)
     campaigns: list[dict] = Field(default_factory=list)
+    # Official results for baskets already checked in this request; never inferred discounts.
+    quote_feedback: list[dict] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------- 需求解析
@@ -412,6 +414,8 @@ class PlanItemOut(BaseModel):
     non_spicy_servings: int = Field(default=0, strict=True, ge=0)
     side_servings: int = Field(default=0, strict=True, ge=0)
     components: list[dict] = Field(default_factory=list)
+    # 官方总价与菜单行参考价分开；不向同款多规格行伪分摊实际报价。
+    line_price_basis: Literal["menu_reference", "live_quote"] = "menu_reference"
 
 
 class ConstraintCheck(BaseModel):
@@ -463,6 +467,10 @@ class PlanOut(BaseModel):
     side_servings_total: int = 0
     price_basis: Literal["menu_estimate", "live_quote", "demo_snapshot"] = "menu_estimate"
     applied_promotions: list[dict] = Field(default_factory=list)
+    quote_id: Optional[str] = None
+    quoted_at: Optional[str] = None
+    take_way_options: list[dict] = Field(default_factory=list)
+    quote_breakdown: dict[str, Optional[int]] = Field(default_factory=dict)
 
 
 class PlanRequest(BaseModel):
@@ -482,24 +490,30 @@ class PlanResponse(BaseModel):
     suggestions: list[str] = Field(default_factory=list)
     # 本次请求实际可用的能力，C 据此提示；不要只凭字段存在判断功能可用
     capabilities: dict[str, bool] = Field(default_factory=dict)
-    algorithm_source: Literal["skill", "demo_sample", "unavailable"] = "demo_sample"
+    algorithm_source: Literal["llm_skill", "skill", "demo_sample", "unavailable"] = "llm_skill"
     campaigns: list[dict] = Field(default_factory=list)
+    skill_version: Optional[str] = None
+    skill_hash: Optional[str] = None
 
 
 # ---------------------------------------------------------------- 结算
 
 
 class OrderIn(BaseModel):
-    plan_id: str
+    model_config = ConfigDict(extra="forbid")
+    plan_id: str = Field(min_length=1, max_length=128)
+    quote_id: str = Field(min_length=1, max_length=128)
+    take_way_code: str = Field(min_length=1, max_length=128)
+    idempotency_key: str = Field(min_length=8, max_length=128)
 
 
 class OrderOut(BaseModel):
     order_id: str
     plan_id: str
     store_code: str
-    items: list[PlanItemOut]
-    total_fen: int
-    status: Literal["simulated"] = "simulated"
-    is_demo: bool = True
-    notice: str = "模拟结算：不产生真实扣款，不构成履约承诺"
+    items: list[PlanItemOut] = Field(default_factory=list)
+    total_fen: int = Field(strict=True, ge=0)
+    status: Literal["pending_payment", "paid", "preparing", "delivering", "completed", "cancelled", "unknown"] = "pending_payment"
+    payment_url: Optional[str] = None
+    expires_at: Optional[str] = None
     created_at: str

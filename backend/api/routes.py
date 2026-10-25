@@ -10,9 +10,6 @@
 
 from __future__ import annotations
 
-import time
-import uuid
-
 from fastapi import APIRouter, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -39,6 +36,8 @@ def ok(data) -> JSONResponse:
 
 ERROR_STATUS = {
     "E_PARAM": 422,
+    "E_SETTINGS_ORIGIN": 403,
+    "E_SETTINGS_CONTENT_TYPE": 415,
     "E_UPSTREAM": 502,
     "E_UPSTREAM_TIMEOUT": 504,
     "E_PLAN_NOT_FOUND": 404,
@@ -46,6 +45,26 @@ ERROR_STATUS = {
     # 收到了已明确但当前全链路不支持的硬约束：不能忽略约束后返回普通方案
     "E_CAPABILITY_UNAVAILABLE": 409,
     "E_INTERNAL": 500,
+    "E_LLM_NOT_CONFIGURED": 503,
+    "E_LLM_REQUEST_FAILED": 502,
+    "E_PLANNING_TIMEOUT": 504,
+    "E_LLM_QUOTA": 503,
+    "E_CANDIDATE_INVALID": 502,
+    "E_ONLINE_REQUIRED": 503,
+    "E_QUOTE_FAILED": 502,
+    "E_QUOTE_NOT_FOUND": 404,
+    "E_QUOTE_EXPIRED": 409,
+    "E_PRICE_CHANGED": 409,
+    "E_BUDGET_EXCEEDED": 409,
+    "E_QUOTE_OVER_BUDGET": 409,
+    "E_TAKE_WAY_REQUIRED": 422,
+    "E_TAKE_WAY_INVALID": 422,
+    "E_IDEMPOTENCY_CONFLICT": 409,
+    "E_ORDER_IN_PROGRESS": 409,
+    "E_ORDER_SUBMISSION_UNKNOWN": 409,
+    "E_ORDER_NOT_FOUND": 404,
+    "E_ORDER_QUERY_FAILED": 502,
+    "E_INVALID_PAYMENT_URL": 502,
 }
 
 
@@ -54,6 +73,14 @@ def fail(error_code: str, msg: str, data=None) -> JSONResponse:
     return JSONResponse(
         {"code": error_code, "msg": msg, "data": data}, status_code=status
     )
+
+
+def service_failure(exc: Exception, message: str) -> JSONResponse:
+    """Expose bounded domain errors, not transport bodies or credential-bearing URLs."""
+    code = getattr(exc, "code", None)
+    if code in ERROR_STATUS:
+        return fail(code, getattr(exc, "message", message), getattr(exc, "data", None))
+    return fail("E_INTERNAL", message)
 
 
 # ---------------------------------------------------------------- 配置
@@ -72,12 +99,8 @@ class ConfigOut(BaseModel):
 
 @router.get("/config")
 async def get_config() -> JSONResponse:
-    from ..services.capabilities import load_skill_module, static_capabilities
-
     payload = settings.describe()
-    # 能力标记反映「输入 + 数据 + 决策」全链路；这里给的是与门店无关的部分
-    payload["contract_version"] = "1.1"
-    payload["capabilities"] = static_capabilities(skill_module=load_skill_module())
+    payload["contract_version"] = "1.2"
     return ok(payload)
 
 
@@ -119,7 +142,7 @@ async def chat(payload: ChatIn) -> JSONResponse:
     try:
         result: ChatOut = await chat_service.parse(payload)
     except Exception as exc:  # noqa: BLE001
-        return fail("E_INTERNAL", f"需求解析失败：{exc}")
+        return service_failure(exc, "这次没识别出来，请重试或直接填写人数和预算。")
     return ok(result.model_dump())
 
 
@@ -142,7 +165,7 @@ async def create_plans(payload: PlanRequest) -> JSONResponse:
     except McpError as exc:
         return fail("E_UPSTREAM", str(exc))
     except Exception as exc:  # noqa: BLE001
-        return fail("E_INTERNAL", f"方案生成失败：{exc}")
+        return service_failure(exc, "这次没配好，请稍后重试。")
     return ok(result.model_dump())
 
 
@@ -205,27 +228,28 @@ async def get_campaigns(store_code: str, preferred_tags: list[str] = Query(defau
     })
 
 
-# ---------------------------------------------------------------- 模拟结算
+# ---------------------------------------------------------------- 官方订单与支付
 
 
 @router.post("/orders")
 async def create_order(payload: OrderIn) -> JSONResponse:
     try:
-        plan, store_code, _requirements = plan_service.store.get(payload.plan_id)
+        order: OrderOut = await plan_service.checkout.create_order(payload)
     except PlanNotFoundError as exc:
         return fail("E_PLAN_NOT_FOUND", str(exc))
     except PlanExpiredError as exc:
         return fail("E_PLAN_EXPIRED", str(exc))
+    except Exception as exc:
+        return service_failure(exc, "订单结果暂未确认，请先查询订单，不要重复提交。")
+    return ok(order.model_dump())
 
-    # 金额从服务端保存的方案重建，不信任请求里的任何金额字段
-    order = OrderOut(
-        order_id=uuid.uuid4().hex[:12],
-        plan_id=plan.plan_id,
-        store_code=store_code,
-        items=plan.items,
-        total_fen=plan.total_fen,
-        created_at=time.strftime("%Y-%m-%dT%H:%M:%S+08:00"),
-    )
+
+@router.get("/orders/{order_id}")
+async def get_order(order_id: str) -> JSONResponse:
+    try:
+        order: OrderOut = await plan_service.checkout.get_order(order_id)
+    except Exception as exc:
+        return service_failure(exc, "暂时没查到订单状态，请稍后再查。")
     return ok(order.model_dump())
 
 
@@ -237,4 +261,4 @@ async def validation_handler(request: Request, exc: RequestValidationError):
 
 
 async def unhandled_handler(request: Request, exc: Exception):
-    return fail("E_INTERNAL", f"内部错误：{exc}")
+    return fail("E_INTERNAL", "服务暂时出了点问题，请稍后重试。")

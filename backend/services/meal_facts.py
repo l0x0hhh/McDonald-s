@@ -169,6 +169,7 @@ def resolve_meal_facts(
         components.append({
             "code": option.code, "name": option.name, "quantity": quantity,
             "food_role": role, "beverage_status": option.beverage_status,
+            "spicy_level": classify_spicy(option.name),
             "servings": main, "servings_verified": bool(main),
             "non_spicy_servings": main if spicy == "mild" else 0,
             "side_servings": int(role == "side"),

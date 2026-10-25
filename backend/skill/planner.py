@@ -5,9 +5,9 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from math import ceil
 from typing import Any
 
+from ..meal_policy import confirmed_mild, extra_portions as _extra_portions, portion_targets as _targets
 from ..schemas import (
     ConstraintCheck,
     MenuItemOut,
@@ -204,6 +204,8 @@ def _unit_for(item: MenuItemOut, combo_details: Mapping[str, dict], requirements
         taste_text = item.name
     else:
         return None
+    if requirements.non_spicy_people == requirements.people and not confirmed_mild(item.spicy_level, components):
+        return None
     if requirements.exclude_beverage and beverage != "none":
         return None
     if main == 0 and side == 0:
@@ -212,19 +214,6 @@ def _unit_for(item: MenuItemOut, combo_details: Mapping[str, dict], requirements
     if maximum < 1:
         return None
     return _Unit(item, price, main, safe, side, beverage, components, selected, spec, _taste_tags(taste_text), maximum)
-
-
-def _targets(requirements: Requirements) -> tuple[int, int, int, str]:
-    people = requirements.people
-    if requirements.appetite == "light":
-        return people, requirements.non_spicy_people, 0, "轻饭量按每人 1 份主食配置"
-    if requirements.appetite == "heavy":
-        return people * 2, requirements.non_spicy_people * 2, ceil(people / 2), "大饭量按每人 2 份主食、每 2 人至少 1 份小食或额外主食配置"
-    return people, requirements.non_spicy_people, ceil(people / 2), "正常饭量按每人 1 份主食、每 2 人至少 1 份小食或额外主食配置"
-
-
-def _extra_portions(main: int, side: int, main_target: int) -> int:
-    return side + max(0, main - main_target)
 
 
 @dataclass(frozen=True)
@@ -346,6 +335,11 @@ def _build_plan(state: _State, units: list[_Unit], requirements: Requirements, n
         ConstraintCheck(name="不带饮料", satisfied=not requirements.exclude_beverage or all(item.beverage_status == "none" for item in plan_items), detail="已核实组合不含饮品" if requirements.exclude_beverage else "未限制饮品"),
         ConstraintCheck(name="资格", satisfied=True, detail="所用餐品资格均已确认或无需会员资格"),
     ]
+    if requirements.non_spicy_people == requirements.people:
+        checks.append(ConstraintCheck(
+            name="全员不辣", satisfied=all(confirmed_mild(item.spicy_level, item.components) for item in plan_items),
+            detail="全部已选餐品及套餐成分均由本地规则判为不辣；辣味与未知辣度已排除",
+        ))
     preferred = set(requirements.preferred_tags)
     known_preferred = preferred & set(_TASTE_WORDS)
     matched = known_preferred & set().union(*(unit.taste_tags for unit, count in zip(units, state.counts) if count))

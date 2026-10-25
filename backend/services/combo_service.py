@@ -21,7 +21,6 @@ from ..providers import (
     McpError,
     McpMenuProvider,
     McpTimeout,
-    SnapshotMenuProvider,
 )
 from ..providers.mapper import map_meal_detail
 from ..schemas import ComboDetailOut, DataSource
@@ -37,7 +36,7 @@ MAX_CONCURRENCY = 4
 @dataclass
 class ComboDetailsResult:
     details: dict[str, ComboDetailOut] = field(default_factory=dict)
-    data_source: DataSource = "demo_snapshot"
+    data_source: DataSource = "live_mcp"
     fetched_at: str = ""
     # 拿不到结构的商品 code
     missing_codes: list[str] = field(default_factory=list)
@@ -55,47 +54,33 @@ class _CacheEntry:
 
 
 class ComboService:
-    def __init__(self, mcp=None, snapshot=None) -> None:
+    def __init__(self, mcp=None) -> None:
         # 依赖可注入，便于测试与复用已有连接
         self._mcp = mcp or McpMenuProvider()
-        self._snapshot = snapshot or SnapshotMenuProvider()
         self._cache: dict[str, _CacheEntry] = {}
         self._semaphore = asyncio.Semaphore(MAX_CONCURRENCY)
 
     # ------------------------------------------------------------ 内部
 
     def _cache_key(self, store_code: str, code: str) -> str:
-        return f"{settings.data_mode}:{store_code}:{code}"
+        return f"live:{store_code}:{code}"
 
     async def _fetch_one(
         self, store_code: str, code: str
     ) -> tuple[Optional[ComboDetailOut], Optional[str]]:
         """返回 (套餐结构, 失败原因)。失败时不抛异常，套餐结构属于增强信息。"""
-        mode = settings.data_mode
-        degraded: Optional[str] = None
-        raw: Optional[object] = None
-        data_source: DataSource = "demo_snapshot"
+        degraded = None
+        raw = None
+        data_source = "live_mcp"
         fetched_at = ""
-
-        if mode in ("live", "auto"):
-            try:
-                async with self._semaphore:
-                    result = await self._mcp.get_meal_detail(store_code, code)
-                raw, data_source, fetched_at = result.data, result.data_source, result.fetched_at
-            except (McpTimeout, McpError) as exc:
-                # 套餐结构取不到不阻塞点餐主流程，但必须记清原因：
-                # 没有结构就无法判断含不含饮料，相关硬约束只能判为不支持
-                raw = None
-                degraded = f"套餐结构获取失败（{type(exc).__name__}）：{exc}"
-
-        if raw is None and mode in ("demo", "auto"):
-            try:
-                result = await self._snapshot.get_meal_detail(store_code, code)
-                raw, data_source, fetched_at = result.data, result.data_source, result.fetched_at
-                degraded = None
-            except FileNotFoundError as exc:
-                if degraded is None:
-                    degraded = f"演示快照缺少该套餐结构：{exc}"
+        try:
+            async with self._semaphore:
+                result = await self._mcp.get_meal_detail(store_code, code)
+            if result.data_source != "live_mcp":
+                raise McpError("套餐详情不是在线数据")
+            raw, fetched_at = result.data, result.fetched_at
+        except (McpTimeout, McpError):
+            degraded = "套餐结构暂未取到，请稍后重试。"
 
         if raw is None:
             return None, degraded or "未取到套餐结构"

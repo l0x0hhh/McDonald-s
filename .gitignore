@@ -6,6 +6,12 @@
 
 # 运行期生成的方案存取文件（快照 JSON 属于演示数据，保留入库）
 backend/data/plans.json
+backend/data/settings.local.json
+backend/data/.settings-*.tmp
+backend/data/orders.sqlite3
+backend/data/orders.sqlite3-journal
+backend/data/orders.sqlite3-wal
+backend/data/orders.sqlite3-shm
 .tmp_*
 
 # 环境变量与密钥：麦当劳 MCP Token、模型 API Key 一律只放本地
@@ -37,3 +43,6 @@ Thumbs.db
 # 演示产物（体积大，按需单独提供）
 *.log
 frontend/dist/
+
+# Local verification backups, runtime evidence and temporary package cache
+frontend/verification/

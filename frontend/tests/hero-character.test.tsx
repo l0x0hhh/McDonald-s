@@ -53,7 +53,7 @@ describe('actual chef eye frames', () => {
     loadFrames()
     const original = screen.getByRole('img')
     const oldFrame = frames()[0]
-    fireEvent.click(screen.getByRole('button', { name: '暂停氛围动效' }))
+    fireEvent.click(screen.getByRole('button', { name: '暂停动效' }))
     expect(scene).toHaveAttribute('data-idle', 'paused')
     fireEvent.click(screen.getByRole('button', { name: '重播人物动效' }))
     expect(scene).toHaveAttribute('data-idle', 'running')

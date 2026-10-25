@@ -1,3 +1,5 @@
+import { installOnlineApi } from './helpers/online-api'
+installOnlineApi()
 import { useCallback } from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
@@ -22,19 +24,21 @@ describe('receipt presence cleanup ordering', () => {
   it('unregisters projection children before completing presence, then reopens on the first click', async () => {
     cleanupOrder.dialogAttached = []
     render(<App />)
-    fireEvent.click(await screen.findByRole('button', { name: '生成省钱方案' }))
-    const choose = await screen.findByRole('button', { name: '就选这份搭配多样' })
+    await screen.findByRole('button', { name: /广州今日广场/ })
+    fireEvent.click(await screen.findByRole('button', { name: '看看怎么点' }))
+    const choose = await screen.findByRole('button', { name: '就选这份搭配多样' }, {timeout: 5000})
     choose.focus()
     fireEvent.click(choose)
-    await screen.findByRole('dialog', { name: '确认这份开饭计划' })
+    await screen.findByRole('dialog', { name: '选择取餐方式' })
     fireEvent.click(screen.getByRole('button', { name: '关闭弹窗' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     await waitFor(() => expect(cleanupOrder.dialogAttached).toEqual([false]))
     expect(choose).toHaveFocus()
     expect(document.querySelector<HTMLElement>('.app-shell')?.inert).toBe(false)
     fireEvent.click(choose)
-    const reopened = await screen.findByRole('dialog', { name: '确认这份开饭计划' })
-    expect(screen.getByRole('button', { name: '确认模拟结算' })).toBeEnabled()
+    const reopened = await screen.findByRole('dialog', { name: '选择取餐方式' })
+    fireEvent.change(screen.getByLabelText('取餐方式'),{target:{value:'eat-in'}})
+    expect(screen.getByRole('button', { name: '前往支付' })).toBeEnabled()
     expect(document.querySelector<HTMLElement>('.app-shell')?.inert).toBe(true)
     expect(reopened).toBeInTheDocument()
   })

@@ -21,7 +21,7 @@ const burger: PlanItem = {
 }
 const fries: PlanItem = { ...burger, code: 'fries', name: '测试薯条', quantity: 1 }
 const plan: Plan = {
-  plan_id: 'comparison-one', type: 'cheapest', title: '记录中的方案', summary: '',
+  plan_id: 'comparison-one', quote_id: 'quote-one', type: 'cheapest', title: '记录中的方案', summary: '',
   items: [burger], subtotal_fen: 9999, total_fen: 2400, budget_fen: 3000,
   remaining_fen: 615, servings_total: 9, non_spicy_servings: 2,
   reasons: [], checks: [],
@@ -40,8 +40,9 @@ describe('plan comparison at a glance', () => {
     expect(metric('人均')).toHaveTextContent('¥12.00')
     expect(metric('人均')).toHaveTextContent('2 人')
     expect(metric('预算剩余')).toHaveTextContent('¥6.15')
-    expect(metric('不辣保障')).toHaveTextContent('2 / 需 2 份')
-    expect(metric('不辣保障')).toHaveTextContent('已满足')
+    expect(metric('不辣主食')).toHaveTextContent('2 / 需 2 份')
+    expect(metric('不辣主食')).toHaveTextContent('已满足 · 本地判断')
+    expect(screen.queryByText('不辣保障')).not.toBeInTheDocument()
     expect(screen.getByRole('article').querySelectorAll('.price')).toHaveLength(1)
   })
 
@@ -62,20 +63,20 @@ describe('plan comparison at a glance', () => {
 
   it('does not count unknown-spice items as non-spicy supply', () => {
     render(<ComparisonCards plans={[{ ...plan, non_spicy_servings: 0 }]} people={2} nonSpicyPeople={1} onSelect={() => {}} />)
-    expect(metric('不辣保障')).toHaveTextContent('0 / 需 1 份')
-    expect(metric('不辣保障')).toHaveTextContent('还差 1 份')
-    expect(metric('不辣保障')).not.toHaveTextContent('已满足')
+    expect(metric('不辣主食')).toHaveTextContent('0 / 需 1 份')
+    expect(metric('不辣主食')).toHaveTextContent('还差 1 份')
+    expect(metric('不辣主食')).not.toHaveTextContent('已满足')
     expect(screen.getByText('辣度未知')).toBeInTheDocument()
   })
 
   it('distinguishes no non-spicy requirement from a missing requirement', () => {
     const { rerender } = render(<ComparisonCards plans={[plan]} people={2} nonSpicyPeople={0} onSelect={() => {}} />)
-    expect(metric('不辣保障')).toHaveTextContent('无不辣要求')
-    expect(metric('不辣保障')).not.toHaveTextContent('还差')
+    expect(metric('不辣主食')).toHaveTextContent('无不辣要求')
+    expect(metric('不辣主食')).not.toHaveTextContent('还差')
 
     rerender(<ComparisonCards plans={[plan]} people={2} onSelect={() => {}} />)
-    expect(metric('不辣保障')).toHaveTextContent('需求未确认')
-    expect(metric('不辣保障')).not.toHaveTextContent('已满足')
+    expect(metric('不辣主食')).toHaveTextContent('需求未确认')
+    expect(metric('不辣主食')).not.toHaveTextContent('已满足')
   })
 
   it('marks unique products by code and shows products omitted from the current plan', () => {
@@ -123,7 +124,7 @@ describe('plan comparison at a glance', () => {
     render(<ComparisonCards plans={[documented]} people={2} onSelect={onSelect} />)
     expect(screen.getAllByText('原始搭配说明')).toHaveLength(1)
     expect(screen.getByRole('article').querySelector('details')).not.toHaveAttribute('open')
-    expect(screen.getByText(/能量 未知 · 蛋白质 未知/)).toBeInTheDocument()
+    expect(screen.getByText(/能量 暂无数据 · 蛋白质 暂无数据/)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: '就选这份最省方案' }))
     expect(onSelect).toHaveBeenCalledExactlyOnceWith(documented)
   })

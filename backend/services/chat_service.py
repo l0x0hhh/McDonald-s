@@ -60,20 +60,12 @@ class ChatService:
         )
 
     async def parse(self, payload: ChatIn) -> ChatOut:
+        from .llm_planner import PlanningError
         module = self._load_llm()
-        if module is not None and callable(getattr(module, "extract_requirements", None)):
-            try:
-                result = await module.extract_requirements(
-                    payload.message, payload.current, demo_mode=settings.data_mode == "demo",
-                )
-                return self._build_out(result, [])
-            except Exception:
-                result = rule_extract(payload.message, payload.current)
-                return self._build_out(result, [
-                    "语义理解服务暂不可用，已切换固定规则；已确认的需求仍保留。"
-                ])
-        result = rule_extract(payload.message, payload.current)
-        return self._build_out(result, ["语义理解模块未装载，当前使用固定规则。"])
+        if module is None or not callable(getattr(module, "extract_requirements", None)):
+            raise PlanningError("E_LLM_NOT_CONFIGURED", "需求理解服务尚未就绪，请直接填写人数和预算。")
+        result = await module.extract_requirements(payload.message, payload.current, demo_mode=False)
+        return self._build_out(result, [])
 
 
 chat_service = ChatService()

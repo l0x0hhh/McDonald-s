@@ -1,78 +1,54 @@
-<!-- C 整合说明：本地前端分支合入 A/B 后端，并运行本轮 demo 验证；上游说明中的静态检查记录保留为历史。 -->
-# 麦门省钱助手
+# 麦门小厨房
 
-**把预算花在想吃的东西上：不带饮料也能凑单，按饭量和口味选餐，再看看开卡值不值。**
+按人数、预算和忌口，从当前门店菜单里搭配一餐。模型读取项目 Skill 选餐，后端核对商品与选配、请求官方报价；选好后前往官方页面付款。
 
-面向单人及多人用餐，结合麦当劳 MCP 的门店、菜单与价格数据，由大模型收集需求，由省钱 Skill 计算候选组合。营养信息可选查看，活动和新品作为发现入口。
+## 本地启动
 
-## 队友从这里开工
+需要 Python 和 Node.js。启动后端：
 
-1. 先读 [开工任务书](./docs/开工任务书.md)：A/B/C 的第一项任务、允许修改文件、交付顺序和可复制的 WorkBuddy 任务说明。
-2. 本次范围与文件清单读 [A/B 整合说明](./docs/A-B整合说明.md)，B 的历史设计见 [B 模块说明](./docs/B模块实现与联调说明.md)。
-3. 当前字段读 [接口契约](./docs/接口与模块契约.md)，未接通目标读 [接口扩展草案](./docs/接口扩展草案.md)；能力以 `/api/v1/config` 与 `/api/v1/plans` 为准。
-4. 产品目标读 [项目执行方案 V0.5](./麦门AI点餐助手-项目初步方案.md)，提交与合并读 [团队协作流程](./团队协作流程.md)。
+```powershell
+python -m pip install -r backend/requirements.txt
+python -m uvicorn backend.main:app --host 127.0.0.1 --port 18000
+```
 
-**当前前端分支已整合 A/B 后端与 C 的 React 小厨房界面；本轮仅本地验证，尚未推送或合入 main。**
+另开终端启动前端：
 
-## 当前真实状态
+```powershell
+cd frontend
+npm.cmd ci
+npm.cmd run dev
+```
 
-本轮把包含 A/B 成果的 `39aea1d` 合入 C 的 `df44a4f` 前端成果，保留双方提交历史。
-本地使用 `DATA_MODE=demo` 运行后端测试与 HTTP 联调；本轮记录见前端 `verification/backend-integration-v10/`，不以旧分支记录替代本轮验证，也不将快照模式视为已验证在线模型或 MCP。
+打开 [小厨房](http://127.0.0.1:5173/)，点击右上角 **设置**，填写 **DeepSeek API Key** 和 **麦当劳 MCP Key**。模型固定 DeepSeek（deepseek-flash），无需配置模型地址；MCP 默认官方服务。已有 Key 可留空保留，保存后即时生效。
 
-| 部分 | 当前状态 | 下一步 |
-|---|---|---|
-| A 的后端 | 保留缓存、快照、套餐轮次和保存前事实校验，接入 B 的规划入口 | 继续核实实时报价与资格 |
-| 麦当劳 MCP | 门店、菜单、营养及套餐详情有既有记录；默认选配经核算后供 B 使用 | 任意换配搜索、实时算价、卡费资格和活动事实尚未接通 |
-| B 的大模型与正式 Skill | 已整合正式方案生成与服务端复核；本轮 demo 使用固定规则解析并实际调用 Skill | 在线模型与 MCP 另行配置和验证 |
-| C 的前端 | 已有 React/TypeScript 响应式小厨房、方案卡片、状态反馈和模拟结算；可连接本地后端 | 扩展能力控件逐步接入，当前明确阻止未开放条件被静默忽略 |
-| 不带饮料、饭量决策、口味规则 | B 显式声明能力，输入由 A 核实并适配，输出经过双方校验 | 无饮料只采用可确认单品或默认无饮料套餐；未搜索任意换配 |
-| 开卡对比与习惯估算 | B 的纯计算与缺数状态已实现；当前快照无三种同篮子报价、已核实卡费和权益 | A 提供事实后才能展示真实可核对金额 |
-| 营养与活动 | B 已做逐指标营养覆盖、缺项和来源；活动只读筛选函数已实现 | 营养缺项保持未知；活动尚无已核实读取数据 |
+Key 仅保存在服务端本机 `backend/data/settings.local.json`（Git 忽略），不回显、不写浏览器存储。环境变量可使用 `DEEPSEEK_API_KEY`、`MCD_MCP_TOKEN`，本地保存设置优先。模型不再使用 Codex 订阅或 OpenAI Key。
 
-`algorithm_source=skill` 表示正式 B 模块接入；`data_source=demo_snapshot` 仍表示演示快照，不能当作实时收银报价。`parse_source=rule/demo_template` 是固定规则识别。支付统一为模拟结算。
+前端默认同源 `/api`，Vite 转发至后端18000。局域网可运行 `npm.cmd run dev -- --host 0.0.0.0`，打开本机局域网IP的5173端口；后端仍只监听回环。静态部署需配置 `/api` 反向代理。不使用8000。
 
-## 本版交付重点
+## 配餐与付款
 
-- 核心流程：按城市和关键词选店 → 聊天或表单确认人数、预算、忌口、饭量与口味 → 查看可解释方案 → 选择方案 → 模拟结算。
-- 差异化：**不带饮料是硬约束**；饭量实际改变搭配；口味规则与营销标签分开；开卡对比分清本次收益与购买习惯假设。
-- 营养：可选查看热量、蛋白质、脂肪、碳水等有来源数据，未知不作零；膳食纤维补充资料单独标注第三方来源与估算性质。
-- 活动与新品：有可用数据就按口味展示；未验证工具不写成已支持，不承诺抽奖必得。
-- 本次展示形式：响应式 Web。App、定位、扫码门店和真实支付保留为后续方向。
+- `backend/skills/meal-planner/SKILL.md` 是后端实际加载的配餐指令，包含版本和哈希。
+- 生产链只读实时菜单，使用模型候选；不运行旧搜索、不固定三套排名、不回退离线样例。
+- 模型固定 DeepSeek（deepseek-flash），只用设置页保存的 Key 或服务端 DEEPSEEK_API_KEY；不回退订阅或其他 API。
+- 保存 Key 与下单互斥；设置更新后旧方案失效，需要重新配餐。
+- 商品行价标为菜单参考；总价来自 `calculate-price`。缺失的费用保持未知，不填零，不给同款不同选配伪分摊官方行价。
+- 选择取餐方式后点击“就选这份”，后端再次核价，再创建待支付订单。价格、需求或方案已变化时重新确认，不直接创建。
+- 页面只跳转官方返回并通过验证的 HTTPS 支付链接；付款由用户在官方页面完成。
+- 订单持久化在本机 SQLite，同一请求不重复创建；提交结果未知时先核实，不自动再下单。只有官方订单状态确认后才显示已付款。
 
-## 三人分工
+## 界面
 
-| 人员 | 主责 | 现在可以交付 |
-|---|---|---|
-| A：刘总 | 公共模型、MCP/快照、算价与资格数据、API、集成、合并 | 现有 API 和样例已经可供 B/C 开始；下一步发布增量字段 |
-| B：AI 与决策 | LLM 需求提取、省钱 Skill、饭量与口味决策、开卡计算、营养解释 | 按现有签名接入一个正式方案和需求提取，不另外调用 MCP |
-| C：前端与体验 | React 页面、需求编辑、方案卡片、对比与营养面板、状态反馈 | 用现有 JSON fixture 串完整页面，集中封装 API |
+React + TypeScript + Vite + Motion。保留红黄奶油色厨房、立体按钮、厨师待机与弹簧动效；采用系统中文字体和更清晰的字号，支持键盘、移动布局与减少动态效果。
 
-材料由 C 整理页面与录屏，B 提供算法及创新点说明，A 汇总来源、开发记录与提交清单。已有路演稿负责人继续主笔，不默认再增加一名开发者。
+## 验证
 
-## 启动已有后端
+```powershell
+python backend/tests/run_settings_v15.py backend/tests tests -q --basetemp=.qa_tmp/final
+cd frontend
+npm.cmd test
+npm.cmd run build
+```
 
-本地使用演示快照和固定规则可以运行后端；在线 LLM 需另外配置 `LLM_BASE_URL`、`LLM_MODEL`、`LLM_API_KEY`：
+测试显式注入假模型和假上游，生产代码不导入测试样例。自动联调只运行真实读取、模型与官方算价；不自动创建真实订单或付款。
 
-~~~bash
-# 在仓库根目录执行；无需重新创建已经存在的虚拟环境。
-python -m venv .venv
-.venv/Scripts/python.exe -m pip install -r backend/requirements.txt
-# macOS/Linux 使用 .venv/bin/python 替代。
-
-# 可以把配置写在 backend/.env 或仓库根目录 .env；环境变量优先。
-# 无 MCP 凭据时先在 PowerShell 设置 $env:DATA_MODE="demo"。
-.venv/Scripts/python.exe -m uvicorn backend.main:app --port 18000 --reload
-~~~
-
-- 本地输入需求并查看方案：http://127.0.0.1:18000/；接口调试：http://127.0.0.1:18000/docs；健康检查：GET /healthz。
-- 根目录 `.env` 中的 `LLM_BASE_URL`、`LLM_MODEL`、`LLM_API_KEY` 会被读取；`DATA_MODE=demo` 始终使用固定规则。`auto` 或 `live` 才会尝试在线模型，请看聊天响应的 `parse_source` 判断实际使用的是 `llm`、`rule` 还是 `demo_template`。改动配置后重启服务。
-- 已有依赖：FastAPI、Uvicorn、HTTPX、Pydantic；MCP 当前为自建 HTTP 适配，并未使用官方 Python SDK。
-- 演示模式依赖本地快照；远程餐品图片可能仍需网络，C 需准备图片失败占位。
-- C 的前端：在 `frontend/` 执行 `npm.cmd ci`、`npm.cmd run dev`，打开 http://127.0.0.1:5173/，点击「连接后端」。详见 [前端说明](./frontend/README.md)。
-- 后端测试：`python -B -m pytest tests backend/tests -q`；本轮使用显式 demo 模式验证，结果另存本轮整合记录。上游合并范围见 [整合说明](./docs/A-B整合说明.md)。
-
-## 排期与来源
-
-团队沿用既有北京时间排期：2026-10-25 12:00 前完成核心集成，14:00 冻结新增功能，15:00 停止开发，15:45 前完成提交检查，16:00 为既有记录中的提交截止。规则依据见 [选手手册](https://waytoagi.feishu.cn/wiki/Ht49w6i3kipT0Vk61H3cmUxtnJg) 与 [赛事介绍](https://waytoagi.feishu.cn/wiki/AYIownRz0ia1Auk41n3cbsC9nDb)；本轮未重新核验主办方规则，以主办方更新为准。
-
-MCP 既有证据见 [能力核实报告](./docs/mcp能力核实报告.md)。各自保存真实 WorkBuddy 开发记录到 docs/workbuddy/a.md、b.md、c.md，A 脱敏汇总为 workbuddy.md。本次为 Codex 辅助整理文档，不冒充 WorkBuddy 实际开发记录。凭据、手机号及订单个人信息不得入库。
+本轮设计和实施计划位于 `docs/superpowers/`；测试、浏览器截图、变更哈希和独立副本回滚证据位于 `frontend/verification/settings-v15/`。更早团队材料保留在 `docs/`，旧版本的订阅、演示模式和模拟订单描述不代表本版行为。

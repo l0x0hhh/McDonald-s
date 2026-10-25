@@ -85,10 +85,10 @@ export default function HeroScene({ paused }: { paused: boolean }) {
       </div>
       </motion.div>
     </div>
-    <div className="open-sign"><span className="sign-dot" /><span><small>TODAY'S KITCHEN</small>小厨房 · 营业中</span></div>
+    <div className="open-sign"><span className="sign-dot" /><span><small>TODAY'S KITCHEN</small>小厨房 · 开饭准备中</span></div>
     <div className="hero-status">
-      <div className="art-caption"><ChefHat size={13} />好吃不将就，预算不超标。</div>
-      {!reducedMotion && <button type="button" className="idle-toggle" aria-label={userPaused ? '开启动效' : '暂停氛围动效'} aria-pressed={userPaused} onClick={() => setUserPaused((value) => !value)}>
+      <div className="art-caption"><ChefHat size={13} />选好搭配，再去付款</div>
+      {!reducedMotion && <button type="button" className="idle-toggle" aria-label={userPaused ? '开启动效' : '暂停动效'} aria-pressed={userPaused} onClick={() => setUserPaused((value) => !value)}>
         {userPaused ? <Play size={11} /> : <Pause size={11} />}<span>{userPaused ? '开启动效' : '暂停动效'}</span>
       </button>}
       {!reducedMotion && <button type="button" className="idle-toggle idle-replay" aria-label="重播人物动效"

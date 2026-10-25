@@ -174,50 +174,16 @@ def test_positional_only_context_is_not_passed_as_keyword():
     assert not skill_supports_context(SimpleNamespace(generate_plans=generate))
 
 
-# 保留 B 已有三参数入口，无需为了 A 的校验调整位置参数。
-def test_legacy_three_parameter_skill_remains_callable():
-    from backend.schemas import PlanningContext
-    from backend.services.plan_service import PlanService
-    calls = []
-    def legacy(items, requirements, nutrition):
-        calls.append(requirements.people)
-        return [], None
-    service = PlanService(menus=object(), nutrition=object(), store=object(), combos=object())
-    service._skill_checked = True
-    service._skill_module = SimpleNamespace(generate_plans=legacy)
-    result = asyncio.run(service._invoke_skill([], Requirements(people=1, budget_fen=5000), {},
-                                              PlanningContext(store_code="store")))
-    assert result == ([], None)
-    assert calls == [1]
-
-
-def test_skill_failure_cannot_bypass_appetite_and_taste_constraints(tmp_path):
-    from backend.services.combo_service import ComboDetailsResult
-    from backend.services.plan_service import PlanService
-    from backend.services.plan_store import PlanStore
-    item = MenuItemOut(code="burger", name="双层吉士汉堡", price_fen=1000, original_price_fen=1000,
-                       category="汉堡", food_role="main", beverage_status="none", spicy_level="mild")
-    async def menu(store_code):
-        return MenuOut(store_code=store_code, items=[item], categories=[], data_source="demo_snapshot", fetched_at="")
-    async def nutrition():
-        return {}
-    async def combos(store_code, codes):
-        return ComboDetailsResult()
-    def broken(items, requirements, nutrition, *, context=None):
-        raise RuntimeError("fixture failure")
-    service = PlanService(menus=SimpleNamespace(get_menu=menu),
-                          nutrition=SimpleNamespace(get_nutrition_map=nutrition),
-                          combos=SimpleNamespace(get_details=combos), store=PlanStore(tmp_path / "plans.json"))
-    service._skill_checked = True
-    service._skill_module = SimpleNamespace(generate_plans=broken, CAPABILITIES={
-        "exclude_beverage": True, "appetite_planning": True, "taste_matching": True,
-    })
-    from backend.services.capabilities import CapabilityUnavailable
-    with pytest.raises(CapabilityUnavailable, match="正式方案生成或约束校验失败"):
-        asyncio.run(service.create_plans(PlanRequest(store_code="store", requirements=Requirements(
-            people=1, budget_fen=5000, appetite="heavy", preferred_tags=["牛肉"], exclude_beverage=True,
+def test_model_failure_cannot_bypass_appetite_and_taste_constraints(tmp_path):
+    from backend.tests.test_llm_online_planning import service, Model
+    from backend.services.llm_planner import PlanningError
+    svc = service(tmp_path, Model(RuntimeError("fixture failure")))
+    with pytest.raises(PlanningError) as error:
+        asyncio.run(svc.create_plans(PlanRequest(store_code="store", requirements=Requirements(
+            people=1, budget_fen=5000, appetite="heavy", preferred_tags=["chicken"], exclude_beverage=True,
         ))))
-    assert not service.store._records
+    assert error.value.code == "E_LLM_REQUEST_FAILED"
+    assert not svc.store._records
 
 
 def test_adapted_default_combo_survives_both_validators_with_surcharge():
