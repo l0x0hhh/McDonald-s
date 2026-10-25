@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>麦门点餐助手 · 本地体验</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, "Microsoft YaHei", sans-serif; background: #fff8ed; color: #261e15; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    header { background: #db151e; color: white; padding: 1.1rem max(1rem, calc((100vw - 980px) / 2)); }
+    header h1 { margin: 0; font-size: 1.5rem; }
+    header p { margin: .35rem 0 0; opacity: .93; }
+    main { max-width: 980px; margin: 1.5rem auto 3rem; padding: 0 1rem; }
+    .panel, .card { background: white; border: 1px solid #eadfce; border-radius: 16px; padding: 1.25rem; box-shadow: 0 4px 16px #38250e0c; }
+    .panel + .panel, .panel + section, section + .panel { margin-top: 1rem; }
+    h2 { margin: 0 0 .8rem; font-size: 1.2rem; }
+    label { display: block; font-weight: 650; margin-bottom: .45rem; }
+    textarea, input { width: 100%; border: 1px solid #b9aa96; border-radius: 9px; padding: .75rem; font: inherit; background: #fff; }
+    textarea { min-height: 105px; resize: vertical; }
+    textarea:focus, input:focus, button:focus-visible { outline: 3px solid #f9c829; outline-offset: 2px; }
+    .row { display: grid; grid-template-columns: minmax(0, 1fr) 160px; gap: 1rem; align-items: end; }
+    .actions { display: flex; gap: .7rem; flex-wrap: wrap; margin-top: .9rem; }
+    button { border: 0; border-radius: 9px; padding: .75rem 1rem; font: inherit; font-weight: 700; cursor: pointer; }
+    button.primary { background: #db151e; color: white; }
+    button.secondary { background: #f2e8d6; color: #2d2318; }
+    button:disabled { opacity: .55; cursor: wait; }
+    .hint, .meta { color: #695d50; font-size: .91rem; }
+    .hint { margin: .5rem 0 0; }
+    [hidden] { display: none !important; }
+    .checkbox { display: flex; align-items: center; gap: .55rem; margin-top: .8rem; font-weight: 500; }
+    .checkbox input { width: auto; }
+    .status { min-height: 1.6rem; margin: .8rem 0 0; line-height: 1.5; }
+    .error { color: #a30d18; }
+    .summary { display: flex; gap: .5rem; flex-wrap: wrap; }
+    .chip { background: #fff1d8; border-radius: 999px; padding: .35rem .65rem; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
+    .card h3 { margin: 0 0 .5rem; }
+    .money { font-size: 1.5rem; font-weight: 800; color: #b40915; margin: .35rem 0; }
+    .line { display: flex; justify-content: space-between; gap: 1rem; border-top: 1px solid #eee6da; padding: .55rem 0; }
+    .line:first-of-type { margin-top: .7rem; }
+    .line span:last-child { white-space: nowrap; }
+    ul { padding-left: 1.25rem; }
+    .empty { padding: .9rem; background: #fff1d8; border-radius: 9px; }
+    @media (max-width: 640px) { .row { grid-template-columns: 1fr; } header { padding: 1rem; } }
+  </style>
+</head>
+<body>
+  <header><h1>麦门点餐助手</h1><p>输入需求，查看预算内的点餐建议 · 本地体验</p></header>
+  <main>
+    <section class="panel" aria-labelledby="input-title">
+      <h2 id="input-title">说说你想怎么吃</h2>
+      <form id="request-form">
+        <div class="row">
+          <div>
+            <label for="message">点餐需求</label>
+            <textarea id="message" required placeholder="例如：2人，总预算100元，1人不吃辣，不要饮料，喜欢鸡肉"></textarea>
+          </div>
+          <div><label for="store-code">门店编号</label><input id="store-code" value="1400011" required></div>
+        </div>
+        <p class="hint">信息不足时，下一句会自动补充本次需求。方案生成后，再次提交默认开始新需求。</p>
+        <label id="continue-wrap" class="checkbox" hidden><input id="continue-previous" type="checkbox">修改上一份已生成的需求（沿用上一轮条件）</label>
+        <div class="actions"><button id="submit" class="primary" type="submit">获取点餐建议</button><button id="reset" class="secondary" type="button">重新开始</button></div>
+      </form>
+      <p id="runtime" class="meta" aria-live="polite"></p>
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+    </section>
+    <section id="requirement-panel" class="panel" hidden><h2>本次规划采用的条件</h2><div id="requirements" class="summary"></div></section>
+    <section id="result-panel" class="panel" hidden><h2>点餐建议</h2><p id="result-meta" class="meta"></p><div id="results" class="cards"></div></section>
+  </main>
+  <script>
+    'use strict';
+    const $ = (id) => document.getElementById(id);
+    let draft = null;
+    let awaitingDetails = false;
+    let completedDraft = null;
+    let busy = false;
+    const money = (fen) => (fen / 100).toFixed(2) + ' 元';
+    const add = (parent, tag, value, className = '') => {
+      const node = document.createElement(tag);
+      node.textContent = value;
+      if (className) node.className = className;
+      parent.appendChild(node);
+      return node;
+    };
+    const status = (message, error = false) => {
+      $('status').textContent = message;
+      $('status').classList.toggle('error', error);
+    };
+    const setBusy = (value) => {
+      busy = value;
+      $('submit').disabled = value;
+      $('reset').disabled = value;
+      $('submit').textContent = value ? '正在生成…' : '获取点餐建议';
+    };
+    async function request(path, options) {
+      const response = await fetch(path, options);
+      const body = await response.json();
+      if (!response.ok || body.code !== 0) throw new Error(body.msg || '请求失败');
+      return body.data;
+    }
+    function renderRequirements(req) {
+      const box = $('requirements');
+      box.replaceChildren();
+      if (!req) { $('requirement-panel').hidden = true; return; }
+      const fields = [req.people + ' 人', (req.budget_type === 'per_person' ? '人均 ' : '总预算 ') + money(req.budget_fen)];
+      fields.push(req.appetite === 'heavy' ? '大饭量' : req.appetite === 'light' ? '轻饭量' : '正常饭量（默认模板）');
+      if (req.exclude_beverage) fields.push('整单不带饮料');
+      const nonSpicy = (req.dietary_constraints || []).find(item => item.kind === 'non_spicy');
+      if (nonSpicy) fields.push(nonSpicy.people + ' 人不吃辣');
+      if (req.preferred_tags?.length) fields.push('口味：' + req.preferred_tags.join('、'));
+      fields.forEach(value => add(box, 'span', value, 'chip'));
+      $('requirement-panel').hidden = false;
+    }
+    function renderPlans(data) {
+      const box = $('results');
+      box.replaceChildren();
+      $('result-panel').hidden = false;
+      $('result-meta').textContent = `算法：${data.algorithm_source} · 数据：${data.data_source} · 总预算：${money(data.total_budget_fen)}。价格以页面标明的依据为准，结算仅为模拟。`;
+      if (!data.plans.length) {
+        add(box, 'p', data.unsatisfiable_reason || '当前条件下没有可行方案。', 'empty');
+        return;
+      }
+      data.plans.forEach(plan => {
+        const card = add(box, 'article', '', 'card');
+        add(card, 'h3', plan.title);
+        add(card, 'p', money(plan.total_fen), 'money');
+        add(card, 'p', `用餐 ${data.requirements.people} 人 · 主食总计 ${plan.servings_total} 份 · 小食总计 ${plan.side_servings_total} 份`, 'chip');
+        add(card, 'p', plan.summary);
+        plan.items.forEach(item => {
+          const line = add(card, 'div', '', 'line');
+          const mainCount = item.servings * item.quantity;
+          const sideCount = item.side_servings * item.quantity;
+          const portion = [mainCount ? `主食 ${mainCount} 份` : '', sideCount ? `小食 ${sideCount} 份` : ''].filter(Boolean).join('、');
+          add(line, 'span', `${item.name} × ${item.quantity}${portion ? ' · ' + portion : ''}`);
+          add(line, 'span', money(item.line_total_fen));
+        });
+        if (plan.reasons?.length) add(card, 'p', plan.reasons.join('；'), 'meta');
+        if (plan.membership_comparison?.status === 'unavailable') add(card, 'p', '开卡对比：暂不可计算（缺少已核实报价或卡费）。', 'meta');
+        if (plan.nutrition_summary?.status) add(card, 'p', '营养信息：' + ({available:'有数据',partial:'部分有数据',unavailable:'暂无数据'}[plan.nutrition_summary.status] || plan.nutrition_summary.status), 'meta');
+        const order = add(card, 'button', '模拟结算', 'secondary');
+        order.type = 'button';
+        order.addEventListener('click', async () => {
+          order.disabled = true;
+          try {
+            const placed = await request('/api/v1/orders', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({plan_id:plan.plan_id})});
+            status(`模拟结算成功：${placed.order_id}，金额 ${money(placed.total_fen)}。未发生真实支付。`);
+          } catch (error) { status(error.message, true); }
+          finally { order.disabled = false; }
+        });
+      });
+    }
+    $('request-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (busy) return;
+      const message = $('message').value.trim();
+      const store = $('store-code').value.trim();
+      if (!message || !store) return;
+      const current = awaitingDetails ? draft : $('continue-previous').checked ? completedDraft : null;
+      setBusy(true);
+      $('requirement-panel').hidden = true;
+      $('result-panel').hidden = true;
+      status('正在理解需求…');
+      try {
+        const parsed = await request('/api/v1/chat', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message, current})});
+        draft = parsed.draft;
+        awaitingDetails = !parsed.ready;
+        renderRequirements(parsed.requirements);
+        $('message').value = '';
+        if (!parsed.ready) {
+          $('continue-wrap').hidden = true;
+          status((parsed.follow_up || '请补充需求。') + `（解析来源：${parsed.parse_source}）`);
+          return;
+        }
+        completedDraft = parsed.draft;
+        draft = null;
+        $('continue-previous').checked = false;
+        $('continue-wrap').hidden = false;
+        status(`需求已确认，正在生成方案…（解析来源：${parsed.parse_source}）`);
+        const plans = await request('/api/v1/plans', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({store_code:store, requirements:parsed.requirements})});
+        renderPlans(plans);
+        status(`已生成 ${plans.plans.length} 套方案。解析来源：${parsed.parse_source}；数据来源：${plans.data_source}。`);
+      } catch (error) { status(error.message, true); }
+      finally { setBusy(false); }
+    });
+    $('reset').addEventListener('click', () => {
+      draft = null;
+      awaitingDetails = false;
+      completedDraft = null;
+      $('continue-previous').checked = false;
+      $('continue-wrap').hidden = true;
+      $('message').value = '';
+      $('requirement-panel').hidden = true;
+      $('result-panel').hidden = true;
+      status('已清空当前需求。');
+      $('message').focus();
+    });
+    request('/api/v1/config').then(config => {
+      $('store-code').value = config.default_store_code || '1400011';
+      $('runtime').textContent = config.data_mode === 'demo'
+        ? '当前为演示快照与固定规则解析；无需模型或 MCP 凭据。'
+        : `当前数据模式：${config.data_mode}。聊天解析来源会显示在结果中；菜单失败时可能降级为演示快照。`;
+    }).catch(() => { $('runtime').textContent = '无法读取运行配置，请确认后端仍在运行。'; });
+  </script>
+</body>
+</html>

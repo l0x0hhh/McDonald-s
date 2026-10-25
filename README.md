@@ -1,4 +1,4 @@
-<!-- 修订说明：同步 V0.5 创意与 A/B/C 开工分工，区分当前代码和待实现功能；本次仅修改文档。 -->
+<!-- C 整合说明：本地前端分支合入 A/B 后端，并运行本轮 demo 验证；上游说明中的静态检查记录保留为历史。 -->
 # 麦门省钱助手
 
 **把预算花在想吃的东西上：不带饮料也能凑单，按饭量和口味选餐，再看看开卡值不值。**
@@ -8,26 +8,28 @@
 ## 队友从这里开工
 
 1. 先读 [开工任务书](./docs/开工任务书.md)：A/B/C 的第一项任务、允许修改文件、交付顺序和可复制的 WorkBuddy 任务说明。
-2. 对接现有代码读 [接口与模块契约](./docs/接口与模块契约.md)，前端样例在 [api-examples](./docs/api-examples/)。
-3. 新需求读 [接口扩展草案](./docs/接口扩展草案.md)：**这是待 A 实现的目标字段，目前接口不会因此自动支持新功能。**
+2. 本次范围与文件清单读 [A/B 整合说明](./docs/A-B整合说明.md)，B 的历史设计见 [B 模块说明](./docs/B模块实现与联调说明.md)。
+3. 当前字段读 [接口契约](./docs/接口与模块契约.md)，未接通目标读 [接口扩展草案](./docs/接口扩展草案.md)；能力以 `/api/v1/config` 与 `/api/v1/plans` 为准。
 4. 产品目标读 [项目执行方案 V0.5](./麦门AI点餐助手-项目初步方案.md)，提交与合并读 [团队协作流程](./团队协作流程.md)。
 
-**A 已由刘总认领。B、C 可立即从现有后端与样例开始，各开自己的功能分支。**
+**当前前端分支已整合 A/B 后端与 C 的 React 小厨房界面；本轮仅本地验证，尚未推送或合入 main。**
 
 ## 当前真实状态
 
-依据当前代码、已提交快照和仓库既有实测记录整理；本次文档修订未编译、启动服务或重新调用 MCP。
+本轮把包含 A/B 成果的 `39aea1d` 合入 C 的 `df44a4f` 前端成果，保留双方提交历史。
+本地使用 `DATA_MODE=demo` 运行后端测试与 HTTP 联调；本轮记录见前端 `verification/backend-integration-v10/`，不以旧分支记录替代本轮验证，也不将快照模式视为已验证在线模型或 MCP。
 
 | 部分 | 当前状态 | 下一步 |
 |---|---|---|
-| A 的后端 | 已有 FastAPI、门店/菜单/营养适配、快照、规则解析、方案保存与模拟结算 | 修正集成问题，补新需求字段及数据能力 |
-| 麦当劳 MCP | 仓库保留门店、菜单、营养的既有调用记录与快照 | 套餐规格、算价、会员规则、活动仍需按实际能力核实和接入 |
-| B 的大模型与正式 Skill | backend/llm.py、backend/skill/ 尚未提交；当前是规则解析和 demo_sample 演示组合 | 先接现有函数签名，再接扩展字段 |
-| C 的前端 | 尚无 frontend/ | 先完成选店、需求、方案、模拟结算页面 |
-| 不带饮料、饭量决策、口味规则、开卡对比 | 尚未完整实现 | 本次已经明确需求和归属，不记为已完成功能 |
-| 营养与活动 | 已有营养读取与名称匹配；无整餐营养建议和活动界面 | 营养可选查看；活动先接读取与推荐 |
+| A 的后端 | 保留缓存、快照、套餐轮次和保存前事实校验，接入 B 的规划入口 | 继续核实实时报价与资格 |
+| 麦当劳 MCP | 门店、菜单、营养及套餐详情有既有记录；默认选配经核算后供 B 使用 | 任意换配搜索、实时算价、卡费资格和活动事实尚未接通 |
+| B 的大模型与正式 Skill | 已整合正式方案生成与服务端复核；本轮 demo 使用固定规则解析并实际调用 Skill | 在线模型与 MCP 另行配置和验证 |
+| C 的前端 | 已有 React/TypeScript 响应式小厨房、方案卡片、状态反馈和模拟结算；可连接本地后端 | 扩展能力控件逐步接入，当前明确阻止未开放条件被静默忽略 |
+| 不带饮料、饭量决策、口味规则 | B 显式声明能力，输入由 A 核实并适配，输出经过双方校验 | 无饮料只采用可确认单品或默认无饮料套餐；未搜索任意换配 |
+| 开卡对比与习惯估算 | B 的纯计算与缺数状态已实现；当前快照无三种同篮子报价、已核实卡费和权益 | A 提供事实后才能展示真实可核对金额 |
+| 营养与活动 | B 已做逐指标营养覆盖、缺项和来源；活动只读筛选函数已实现 | 营养缺项保持未知；活动尚无已核实读取数据 |
 
-live_mcp 表示业务数据来源，不代表正式算法已经接入；parse_source=rule 表示规则识别；suggestions 含 demo_sample 表示仍是演示算法。支付统一为模拟结算。
+`algorithm_source=skill` 表示正式 B 模块接入；`data_source=demo_snapshot` 仍表示演示快照，不能当作实时收银报价。`parse_source=rule/demo_template` 是固定规则识别。支付统一为模拟结算。
 
 ## 本版交付重点
 
@@ -49,7 +51,7 @@ live_mcp 表示业务数据来源，不代表正式算法已经接入；parse_so
 
 ## 启动已有后端
 
-以下沿用仓库已有启动说明，本轮未重跑：
+本地使用演示快照和固定规则可以运行后端；在线 LLM 需另外配置 `LLM_BASE_URL`、`LLM_MODEL`、`LLM_API_KEY`：
 
 ~~~bash
 # 在仓库根目录执行；无需重新创建已经存在的虚拟环境。
@@ -57,15 +59,17 @@ python -m venv .venv
 .venv/Scripts/python.exe -m pip install -r backend/requirements.txt
 # macOS/Linux 使用 .venv/bin/python 替代。
 
-# 复制 backend/.env.example 为 backend/.env。
-# 有凭据时填 MCP 地址/Token；无凭据时设置 DATA_MODE=demo。
-.venv/Scripts/python.exe -m uvicorn backend.main:app --port 8000 --reload
+# 可以把配置写在 backend/.env 或仓库根目录 .env；环境变量优先。
+# 无 MCP 凭据时先在 PowerShell 设置 $env:DATA_MODE="demo"。
+.venv/Scripts/python.exe -m uvicorn backend.main:app --port 18000 --reload
 ~~~
 
-- 接口调试：http://127.0.0.1:8000/docs；健康检查：GET /healthz。
+- 本地输入需求并查看方案：http://127.0.0.1:18000/；接口调试：http://127.0.0.1:18000/docs；健康检查：GET /healthz。
+- 根目录 `.env` 中的 `LLM_BASE_URL`、`LLM_MODEL`、`LLM_API_KEY` 会被读取；`DATA_MODE=demo` 始终使用固定规则。`auto` 或 `live` 才会尝试在线模型，请看聊天响应的 `parse_source` 判断实际使用的是 `llm`、`rule` 还是 `demo_template`。改动配置后重启服务。
 - 已有依赖：FastAPI、Uvicorn、HTTPX、Pydantic；MCP 当前为自建 HTTP 适配，并未使用官方 Python SDK。
 - 演示模式依赖本地快照；远程餐品图片可能仍需网络，C 需准备图片失败占位。
-- C 的前端启动方式随前端交付补充。
+- C 的前端：在 `frontend/` 执行 `npm.cmd ci`、`npm.cmd run dev`，打开 http://127.0.0.1:5173/，点击「连接后端」。详见 [前端说明](./frontend/README.md)。
+- 后端测试：`python -B -m pytest tests backend/tests -q`；本轮使用显式 demo 模式验证，结果另存本轮整合记录。上游合并范围见 [整合说明](./docs/A-B整合说明.md)。
 
 ## 排期与来源
 

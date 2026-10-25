@@ -11,6 +11,7 @@ import type {
   Plan,
   PlanResponse,
   Requirements,
+  RequirementsDraft,
   StoreListResponse,
 } from './types';
 
@@ -113,10 +114,15 @@ export async function getStores(mode: Mode, city = '广州', keyword = ''): Prom
   return result;
 }
 
-export async function parseChat(mode: Mode, message: string, current: Requirements | null): Promise<ChatResponse> {
-  return mode === 'api'
-    ? request<ChatResponse>('/chat', { message, current })
-    : parseDemoChat(message, current);
+export async function parseChat(mode: Mode, message: string, current: Requirements | RequirementsDraft | null): Promise<ChatResponse> {
+  if (mode === 'api') return request<ChatResponse>('/chat', { message, current });
+  // The older local template accepts only complete requirements, never a pending API draft.
+  const complete = current && typeof current.people === 'number' && typeof current.budget_fen === 'number'
+    && (current.budget_type === 'total' || current.budget_type === 'per_person')
+    && Array.isArray(current.dietary_constraints) && Array.isArray(current.preferred_tags)
+    && (current.appetite === 'light' || current.appetite === 'normal' || current.appetite === 'heavy')
+    && !('pending_fields' in current && current.pending_fields?.length);
+  return parseDemoChat(message, complete ? current as Requirements : null);
 }
 
 function matchesCanonical(requirements: Requirements, budget: number): boolean {
@@ -125,6 +131,11 @@ function matchesCanonical(requirements: Requirements, budget: number): boolean {
     && requirements.budget_fen === budget
     && requirements.appetite === 'normal'
     && requirements.preferred_tags.length === 0
+    && requirements.exclude_beverage !== true
+    && (requirements.membership_status == null || requirements.membership_status === 'unknown')
+    && requirements.meal_frequency_per_month == null
+    && requirements.habit_horizon_months == null
+    && (requirements.habitual_tags?.length ?? 0) === 0
     && requirements.dietary_constraints.length === 1
     && requirements.dietary_constraints[0].kind === 'non_spicy'
     && requirements.dietary_constraints[0].people === 2;

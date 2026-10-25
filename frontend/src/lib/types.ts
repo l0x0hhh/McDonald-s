@@ -16,7 +16,18 @@ export interface Requirements {
   dietary_constraints: DietaryConstraint[];
   appetite: 'light' | 'normal' | 'heavy';
   preferred_tags: string[];
+  /** V1.1 fields are optional for old fixtures; non-default requests must not be dropped. */
+  exclude_beverage?: boolean;
+  membership_status?: 'unknown' | 'none' | 'active';
+  meal_frequency_per_month?: number | null;
+  habit_horizon_months?: number | null;
+  habitual_tags?: string[];
 }
+
+/** A backend draft may retain missing/contradictory information across chat turns. */
+export type RequirementsDraft = {
+  [K in keyof Requirements]?: Requirements[K] | null;
+} & { pending_fields?: string[]; notes?: string[] };
 
 export interface Store {
   store_code: string;
@@ -93,11 +104,15 @@ export interface PlanResponse extends SourceMetadata {
   total_budget_fen: number;
   unsatisfiable_reason?: string | null;
   suggestions: string[];
+  algorithm_source?: 'skill' | 'demo_sample' | 'unavailable';
+  capabilities?: Record<string, boolean>;
 }
 
 export interface ChatResponse {
-  /** Only complete Requirements may be sent as the next API current value. */
+  /** Complete requirements populate the form; API follow-ups prefer the draft below. */
   requirements: Requirements | null;
+  /** Prefer this in the next API chat turn, including when requirements is null. */
+  draft?: RequirementsDraft | null;
   missing_fields: string[];
   follow_up?: string | null;
   ready: boolean;

@@ -23,10 +23,11 @@ class ProviderResult:
 
 @dataclass
 class MenuSnapshot:
-    """一次完整采集的结果：门店 + 菜单 + 营养表。
+    """一次完整采集的结果：门店 + 菜单 + 营养表 + 套餐结构。
 
-    stores / menu / nutrition 均为 MCP 原始返回中的 data 部分，
-    未经过任何删改，保证证据可回溯。
+    stores / menu / nutrition / meal_details 均为 MCP 原始返回中的 data 部分，
+    未经过任何删改，保证证据可回溯。meal_details 以商品 code 为 key，
+    缺它就意味着演示模式下无法判断套餐是否含饮料。
     """
 
     store_code: str
@@ -34,6 +35,7 @@ class MenuSnapshot:
     stores: Optional[Any] = None
     menu: Optional[Any] = None
     nutrition: Optional[Any] = None
+    meal_details: Optional[dict[str, Any]] = None
     trace_ids: dict[str, str] = field(default_factory=dict)
     data_source: DataSource = "live_mcp"
 

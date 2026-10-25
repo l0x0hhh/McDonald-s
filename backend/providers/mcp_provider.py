@@ -1,3 +1,4 @@
+# 修订说明：价格与选配差价解析遇到非有限数值时返回未知，不泄漏转换异常。
 """麦当劳 MCP 在线适配（A 职责）。
 
 实现一个不依赖官方 SDK 的最小 MCP 客户端（JSON-RPC over Streamable HTTP），
@@ -201,18 +202,25 @@ def parse_price_fen(value: Any) -> Optional[int]:
         return None
     try:
         return int((Decimal(str(value)) * 100).to_integral_value())
-    except (InvalidOperation, ValueError, TypeError):
+    # Infinity 等异常数值也属于未知价格，不能让转换异常中断菜单读取。
+    except (InvalidOperation, ValueError, TypeError, OverflowError):
         return None
 
 
-def parse_diff_price_fen(value: Any) -> int:
-    """套餐选项差价，如 "+ ¥1"、"+ ¥0"、"- ¥2"。失败按 0 处理。"""
+def parse_diff_price_fen(value: Any) -> Optional[int]:
+    """套餐选项差价，如 "+ ¥1"、"+ ¥0"、"- ¥2"。
+
+    解析失败返回 None（记未知），绝不返回 0 —— 0 会被当成「已确认不加价」，
+    与真实的「+ ¥0」无法区分。
+    """
     if value is None:
-        return 0
+        return None
     try:
-        return int((Decimal(str(value).replace("¥", "").replace("+", "").replace(" ", "")) * 100).to_integral_value())
-    except (InvalidOperation, ValueError, TypeError):
-        return 0
+        text = str(value).replace("¥", "").replace("+", "").replace(" ", "")
+        return int((Decimal(text) * 100).to_integral_value())
+    # 与主价格保持一致：非有限差价返回未知，绝不当作零差价。
+    except (InvalidOperation, ValueError, TypeError, OverflowError):
+        return None
 
 
 class McpMenuProvider:
@@ -260,6 +268,25 @@ class McpMenuProvider:
             fetched_at=payload.get("datetime", ""),
             trace_id=payload.get("traceId"),
             tool_name="query-meals",
+        )
+
+    async def get_meal_detail(self, store_code: str, meal_code: str) -> ProviderResult:
+        """套餐选配结构。入参实测为 code（不是 mealCode），到店自取不传 beCode。"""
+        payload = await self.client.call_tool(
+            "query-meal-detail",
+            {
+                "storeCode": store_code,
+                "code": str(meal_code),
+                "orderType": settings.order_type,
+                "beType": settings.be_type,
+            },
+        )
+        return ProviderResult(
+            data=payload,
+            data_source="live_mcp",
+            fetched_at=payload.get("datetime", ""),
+            trace_id=payload.get("traceId"),
+            tool_name="query-meal-detail",
         )
 
     async def get_nutrition(self) -> ProviderResult:

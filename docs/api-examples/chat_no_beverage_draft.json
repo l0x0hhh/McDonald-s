@@ -1,0 +1,31 @@
+{
+  "code": 0,
+  "data": {
+    "requirements": null,
+    "draft": {
+      "people": 2,
+      "budget_type": null,
+      "budget_fen": null,
+      "dietary_constraints": [],
+      "appetite": "normal",
+      "preferred_tags": [],
+      "exclude_beverage": true,
+      "membership_status": "unknown",
+      "meal_frequency_per_month": null,
+      "habit_horizon_months": null,
+      "habitual_tags": [],
+      "pending_fields": [
+        "budget"
+      ],
+      "notes": []
+    },
+    "missing_fields": [
+      "budget"
+    ],
+    "follow_up": "预算是多少？请说明是总预算还是人均预算。",
+    "ready": false,
+    "parse_source": "demo_template",
+    "notes": []
+  },
+  "msg": "ok"
+}

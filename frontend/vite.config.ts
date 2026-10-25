@@ -3,7 +3,8 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  server: { port: 5173, strictPort: true },
+  // Verification copies contain HTML/tsconfig files, but must never reset a live meal form.
+  server: { port: 5173, strictPort: true, watch: { ignored: ['**/verification/**'] } },
   test: {
     environment: 'jsdom',
     setupFiles: ['./tests/setup.ts'],

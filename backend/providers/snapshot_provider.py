@@ -37,6 +37,7 @@ def load_snapshot(store_code: str) -> Optional[MenuSnapshot]:
         stores=raw.get("stores"),
         menu=raw.get("menu"),
         nutrition=raw.get("nutrition"),
+        meal_details=raw.get("meal_details"),
         trace_ids=raw.get("trace_ids") or {},
         data_source=raw.get("source", "live_mcp"),
     )
@@ -54,9 +55,16 @@ def save_snapshot(snapshot: MenuSnapshot) -> Path:
         "stores": snapshot.stores,
         "menu": snapshot.menu,
         "nutrition": snapshot.nutrition,
+        "meal_details": snapshot.meal_details,
         "note": "本快照由真实麦当劳 MCP 采集生成，仅用于演示兜底，不修改原始数据",
     }
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    # 先写临时文件再原子替换：写一半崩了也不会留下损坏的快照，
+    # 更不会把上一次可用的快照覆盖掉
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+    tmp_path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    tmp_path.replace(path)
     return path
 
 
@@ -85,6 +93,24 @@ class SnapshotMenuProvider:
             fetched_at=snapshot.fetched_at,
             trace_id=snapshot.trace_ids.get("query-meals"),
             tool_name="query-meals",
+        )
+
+    async def get_meal_detail(self, store_code: str, meal_code: str) -> ProviderResult:
+        """套餐结构只从快照读；没有就抛 FileNotFoundError，不伪造轮次。"""
+        snapshot = load_snapshot(store_code)
+        if snapshot is None:
+            raise FileNotFoundError(f"门店 {store_code} 无本地快照")
+        raw = (snapshot.meal_details or {}).get(str(meal_code))
+        if raw is None:
+            raise FileNotFoundError(
+                f"门店 {store_code} 的套餐 {meal_code} 无本地结构快照"
+            )
+        return ProviderResult(
+            data=raw,
+            data_source="demo_snapshot",
+            fetched_at=snapshot.fetched_at,
+            trace_id=snapshot.trace_ids.get("query-meal-detail"),
+            tool_name="query-meal-detail",
         )
 
     async def get_nutrition(self) -> ProviderResult:
